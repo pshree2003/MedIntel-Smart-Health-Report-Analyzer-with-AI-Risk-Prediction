@@ -1,93 +1,110 @@
-# MedIntel AI: Smart Health Report Analyzer & Risk Predictor
+# MedIntel AI: Advanced Health Diagnostic & Risk Prediction Platform
 
-MedIntel AI is a cutting-edge patient-centric platform that leverages **Google Gemini AI** to transform complex medical reports into actionable health insights. It provides real-time risk assessments, intuitive data visualizations, and an intelligent healthcare discovery engine.
-
----
-
-## 🚀 Key Features
-
-### 📄 1. AI Report Extraction
-Instantly parse PDF and image-based medical reports (CBC, Liver Function, etc.) to extract patient vitals and lab values with high accuracy. No manual entry required.
-
-### 🩺 2. Health Risk Prediction
-Dynamic AI assessment of potential health risks based on clinical data:
-- **Cardiovascular Health**: Real-time evaluation of heart markers.
-- **Diabetes Risk**: Continuous monitoring of glucose trends.
-- **Organ Function**: Automated insights into Kidney and Liver health indicators.
-
-### 🏥 3. Smart Consultant Discovery
-A real-time engine to find **10+ top-rated hospitals** and specialized doctors (Cardiologists, Hematologists, etc.) in your specific city.
-- Powered by a **Multi-Model Fallback System** (Gemini 2.0/Pro/OSM).
-- Verified contact details and realistic consultation fee ranges.
-
-### 📊 4. Interactive Health Dashboard
-Modern, glassmorphism-inspired UI for tracking:
-- **Health Trends**: Visual representation of "Risk Levels" (High, Moderate, Stable).
-- **Lab Values**: Breakdown of Hemoglobin, WBC, Platelets, and more.
-
-### 🎨 5. Premium UI/UX
-- **Dual-Theme Engine**: Seamlessly switch between Premium Dark and Accessible Light modes.
-- **Micro-Animations**: Smooth transitions using CSS3 and Lucide Icons.
+**MedIntel AI** is a professional-grade health informatics platform designed to bridge the gap between complex laboratory data and actionable patient insights. By leveraging State-of-the-Art (SOTA) Large Language Models via the **Google Gemini Pro** infrastructure, MedIntel AI automates the extraction, analysis, and visualization of clinical reports to provide a comprehensive 360-degree view of a patient’s health trajectory.
 
 ---
 
-## 🏗️ Project Architecture
+## 🔬 About the Project
+
+In the current healthcare landscape, patients often struggle with the interpretation of dense pathological reports, leading to delayed interventions or unnecessary anxiety. **MedIntel AI** address this by providing a unified, AI-driven diagnostic buffer. Our mission is to empower users with precise clinical context and streamlined specialist discovery, ensuring that predictive healthcare is accessible, intuitive, and data-driven.
+
+---
+
+## 🛡️ Core Capabilities
+
+### 1. Intelligent Clinical Data Extraction
+Utilizing high-performance Multimodal AI, the platform parses unstructured data from PDF and image-based laboratory results (e.g., Complete Blood Count, Metabolic Panels). It identifies critical markers with low-latency and maps them to a structured clinical schema.
+
+### 2. Predictive Risk Stratification
+The platform employs specialized AI agents to evaluate longitudinal and static health markers against clinical benchmarks to predict risks for:
+- **Cardiovascular Resilience**: Assessment of lipid profiles and inflammatory markers.
+- **Glycemic Stability**: Analysis of glucose and HbA1c indicators for Diabetological risk.
+- **Hematological Balance**: Detection of anomalies in oxygen-carrying capacity and immune response.
+
+### 3. Smart Healthcare Discovery Engine
+A dual-layer routing system that matches identified health risks with appropriate medical facilities:
+- **Prioritized Specialist Matching**: Based on report findings (e.g., Hematologists for low RBC).
+- **Geospatial Discovery**: Real-time identification of 10+ top-tier hospitals within the user's vicinity.
+- **Fail-Safe Logic**: Integrated OpenStreetMap (OSM) fallback ensuring continuous availability of healthcare data.
+
+### 4. Professional Health Dashboard
+A high-fidelity visualization layer designed for clinical clarity:
+- **Risk Indicator Gauges**: Intuitive color-coded health status tracking.
+- **Trend Analysis**: Quantitative breakdown of critical lab values.
+- **Adaptive UI**: Optimized for both high-contrast professional environments and accessibility-focused light themes.
+
+---
+
+## 🏗️ Technical Architecture
 
 ```mermaid
 graph TD
-    A[User Uploads Report] --> B[Gemini AI Extraction]
-    B --> C[Structured Health Data]
-    C --> D[Risk Assessment Engine]
-    D --> E[Interactive Dashboard]
-    E --> F[Hospital & Doctor Search]
-    F --> G[Real-Time OSM Fallback]
+    User([User]) -- "Upload Report" --> Landing[Landing Page / Upload Interface]
+    Landing -- "Base64 Stream" --> GeminiAI{Gemini Pro AI Node}
+    GeminiAI -- "Structured Extraction" --> Extraction[JSON Health Schema]
+    Extraction -- "Risk Scoring" --> Dashboard[Interactive Health HUD]
+    Dashboard -- "City Query" --> Discovery[Healthcare Discovery Engine]
+    Discovery -- "Primary API" --> GeminiSearch[AI Facility Search]
+    Discovery -- "Secondary API" --> OSMSearch[OpenStreetMap Fallback]
+    GeminiSearch & OSMSearch --> Results[10+ Recommended Specialists]
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
-- **Framework**: [React.js](https://reactjs.org/) (via Vite)
-- **AI Model**: [Google Gemini Pro / Flash](https://ai.google.dev/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Styling**: Vanilla CSS (Custom Design System)
-- **Maps/Discovery**: OpenStreetMap (Nominatim API)
+| Layer | Technology |
+| :--- | :--- |
+| **Core Framework** | React.js (Vite Runtime) |
+| **Artificial Intelligence** | Google Gemini 1.5 Flash / 2.0 Pro / 1.5 Pro |
+| **Geospatial Data** | Nominatim (OpenStreetMap) |
+| **State Orchestration** | React Context API |
+| **Typography & UI** | Outfit (Headings), Inter (Body), Lucide React |
 
 ---
 
-## 📦 Installation & Setup
+## ⚙️ Installation & Deployment
 
-### Prerequisites
-- Node.js (v18 or higher)
-- A Google Gemini API Key ([Get one here](https://aistudio.google.com/))
+### Environment Prerequisites
+- **Node.js**: Version 18.0.0 or higher.
+- **API Access**: A valid Google AI Studio API Key.
 
-### Steps
-1. **Clone the repository**:
+### Initial Configuration
+1. **Clone the Repository**:
    ```bash
    git clone https://github.com/pshree2003/Smart-Health-Report-Analyzer-with-AI-Risk-Prediction.git
    cd Smart-Health-Report-Analyzer-with-AI-Risk-Prediction
    ```
 
-2. **Install dependencies**:
+2. **Dependency Management**:
    ```bash
    npm install
    ```
 
-3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory and add:
+3. **Infrastructural Constants**:
+   Create a `.env` file in the root directory:
    ```env
-   VITE_GEMINI_API_KEY=your_api_key_here
+   VITE_GEMINI_API_KEY=YOUR_SECURE_API_KEY
    ```
 
-4. **Run the application**:
+4. **Production Readiness**:
    ```bash
-   npm run dev
+   npm run build
+   # Deploy contents of the 'dist' folder to your preferred host (Vercel, Netlify, etc.)
    ```
 
 ---
 
-## 🛡️ License
-Distributed under the MIT License. See `LICENSE` for more information.
+## 🔐 Data Privacy & Ethical AI
+MedIntel AI is built with **Privacy by Design**. 
+- **Ephemeral Processing**: Health data is processed in-memory for the duration of the session and is not persisted on our servers.
+- **Transparency**: AI-generated predictions are intended for **informational purposes only** and should be verified by a licensed medical professional.
 
-## 👨‍💻 Developed by
-[PShree](https://github.com/pshree2003) - *Building the future of AI-driven healthcare.*
+---
+
+## ⚖️ License
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for detailed legal terminology.
+
+## 👥 Contributors
+Developed and maintained by **[PShree](https://github.com/pshree2003)**. 
+*Advancing the boundaries of AI-driven prophylactic medicine.*
