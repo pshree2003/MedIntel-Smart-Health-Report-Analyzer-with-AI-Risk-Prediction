@@ -4,5 +4,5 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: mode === 'production' ? '/1Smart-Health-Report-Analyzer-with-AI-Risk-Prediction/' : '/'
+  base: mode === 'production' ? '/Smart-Health-Report-Analyzer-with-AI-Risk-Prediction/' : '/'
 }))
