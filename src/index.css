@@ -270,65 +270,184 @@ strong {
   border: 1px solid rgba(0, 210, 255, 0.2);
 }
 
-/* Mobile Responsiveness */
+/* RWD layout classes */
+.top-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 3rem;
+  border-bottom: 1px solid var(--surface-border);
+  backdrop-filter: blur(10px);
+  position: sticky; 
+  top: 0; 
+  z-index: 100;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem 3rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  overflow-y: auto;
+}
+
+.patient-info-banner {
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.patient-info-details {
+  display: flex;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+}
+
+.grid-col-12 { grid-column: span 12; }
+.grid-col-8 { grid-column: span 8; }
+.grid-col-7 { grid-column: span 7; }
+.grid-col-5 { grid-column: span 5; }
+.grid-col-4 { grid-column: span 4; }
+
+.treatments-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.doctors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+/* Landing Page */
+.landing-container {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-color);
+  overflow: hidden;
+  position: relative;
+}
+
+.landing-left {
+  flex: 1;
+  padding: 2rem 5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 10;
+}
+
+.landing-right {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
 @media (max-width: 1024px) {
-  .container {
-    padding: 0 1.5rem;
+  .top-navbar {
+    flex-direction: column;
+    padding: 1rem 1.5rem;
+    gap: 1rem;
+    justify-content: center;
   }
   
-  /* Stack vertical on smaller screens if they use grid */
-  [style*="grid-template-columns: repeat(12, 1fr)"] {
-    grid-template-columns: 1fr !important;
+  .nav-links, .nav-actions {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .nav-actions {
+    margin-top: 0.5rem;
+  }
+
+  .main-content {
+    padding: 1.5rem;
+  }
+
+  .patient-info-banner {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
   }
   
-  [style*="grid-column: span"] {
-    grid-column: span 1 !important;
+  .patient-info-details {
+    gap: 1rem;
+    width: 100%;
   }
 
-  /* Landing Page adjustment */
-  [style*="display: flex; min-height: 100vh"] {
-    flex-direction: column !important;
-    overflow-y: auto !important;
+  .dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
   }
 
-  [style*="padding: 4rem 5rem"] {
-    padding: 2rem 1.5rem !important;
+  .treatments-grid {
+    grid-template-columns: 1fr;
   }
 
-  [style*="font-size: 3.5rem"] {
-    font-size: 2.25rem !important;
+  .doctors-grid {
+    grid-template-columns: 1fr;
   }
 
-  /* Sidebar fallback for mobile */
-  aside {
-    width: 100% !important;
-    height: auto !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--surface-border) !important;
-    padding: 1.5rem !important;
+  .landing-container {
+    flex-direction: column;
+    overflow-y: auto;
   }
-
-  main {
-    padding: 1.5rem !important;
-    height: auto !important;
+  
+  .landing-left {
+    padding: 2.5rem 1.5rem 1rem 1.5rem;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .landing-left h1 {
+    font-size: 2.5rem !important;
+  }
+  
+  .landing-right {
+    padding: 1rem 1.5rem 3rem 1.5rem;
   }
 }
 
 @media (max-width: 768px) {
   .glass-panel {
-    padding: 1.5rem !important;
-  }
-
-  [style*="grid-template-columns: 1fr 1fr"] {
-    grid-template-columns: 1fr !important;
+    padding: 1.25rem !important;
   }
 
   .nav-btn {
     padding: 0.5rem 0.75rem !important;
-  }
-
-  [style*="flex-direction: row"] {
-    flex-direction: column !important;
+    font-size: 0.85rem !important;
   }
 }
 

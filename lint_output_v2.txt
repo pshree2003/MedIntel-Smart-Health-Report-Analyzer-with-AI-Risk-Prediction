@@ -1,0 +1,23 @@
+
+> smart-health-report-analyzer-with-ai-risk-prediction@0.0.0 lint
+> eslint .
+
+
+C:\Users\Shravani\OneDrive\Desktop\Smart Health Report Analyzer with AI Risk Prediction\src\pages\Dashboard.jsx
+  44:53  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+  42 |   
+  43 |   // Stable ID to avoid impure render errors
+> 44 |   const patientId = useMemo(() => `MED-${Math.floor(Math.random() * 10000)}X`, []);
+     |                                                     ^^^^^^^^^^^^^ Cannot call impure function
+  45 |
+  46 |
+  47 |   const getStatusClass = (status) => {  react-hooks/purity
+
+C:\Users\Shravani\OneDrive\Desktop\Smart Health Report Analyzer with AI Risk Prediction\vite.config.js
+  7:9  error  'process' is not defined  no-undef
+
+Γ£û 2 problems (2 errors, 0 warnings)
+

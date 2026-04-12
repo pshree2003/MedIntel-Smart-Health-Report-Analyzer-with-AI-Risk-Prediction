@@ -8,7 +8,7 @@ import './App.css';
 function App() {
   return (
     <ThemeProvider>
-      <Router>
+      <Router basename={import.meta.env.BASE_URL}>
         <div className="app-container">
           <Routes>
             <Route path="/" element={<LandingPage />} />

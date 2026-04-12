@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UploadCloud, Shield, Activity, ArrowRight, CheckCircle, FileText, Cpu, HeartPulse, Key, Sun, Moon } from 'lucide-react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+
 import { useTheme } from '../context/ThemeContext';
 
 const LandingPage = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key') || '');
+  const [apiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key') || '');
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -46,95 +46,116 @@ const LandingPage = () => {
     setUploading(true);
 
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const modelsToTry = ["gemini-2.0-flash", "gemini-pro", "gemini-1.5-pro", "gemini-1.5-flash-latest"];
+      const PROMPT = `You are an expert medical AI. Analyze this health report and extract all relevant data.
+Return ONLY valid JSON (no markdown, no backticks, no extra text) matching this EXACT structure:
+{
+  "patientName": "string (patient full name or 'Unknown Patient')",
+  "age": "string (age as number or 'N/A')",
+  "gender": "string (Male/Female/Other or 'N/A')",
+  "address": "string (patient address or 'N/A')",
+  "referredDoctor": "string (doctor name or 'N/A')",
+  "healthScore": number (0-100, estimate based on values),
+  "reportDate": "string (date of report or today's date)",
+  "medicalValues": [
+    {
+      "name": "string (test name)",
+      "value": "string (measured value)",
+      "unit": "string (unit of measurement)",
+      "normal": "string (normal range)",
+      "status": "string (Normal, High, Low, Slightly High, or Slightly Low)"
+    }
+  ],
+  "riskPrediction": "string (2-4 sentences explaining health risks and findings)",
+  "recoveryEstimate": "string (estimated recovery or maintenance timeline)",
+  "naturalTreatments": ["string", "string", "string"],
+  "medicalTreatments": ["string", "string"],
+  "exerciseReminders": [
+    {
+      "title": "string (exercise name)",
+      "time": "string (e.g. '07:00 AM')",
+      "reason": "string (brief reason)"
+    }
+  ]
+}
+If any field is not in the report, use a sensible default. Always return valid parseable JSON.`;
 
-      const reports = await Promise.all(files.map(async (file) => {
+      const fileToBase64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+
+      const analyzeFile = async (file) => {
         const base64Data = await fileToBase64(file);
+        const base64Only = base64Data.split(',')[1];
         const mimeType = file.type || 'application/pdf';
 
-        const prompt = `You are an expert medical AI assistant. Look at the provided medical report document. Extract the patient's details and medical values, and generate health recommendations. 
-        Return ONLY a strict JSON object with this exact structure (no markdown formatting, no backticks, no code blocks, just pure JSON):
-        {
-          "patientName": "string or Unknown",
-          "age": "string",
-          "gender": "string or Unknown",
-          "address": "string",
-          "referredDoctor": "string",
-          "healthScore": number (0-100 indicating overall health based on report anomalies),
-          "medicalValues": [
-            { "name": "string (e.g. WBC Count)", "value": "string", "unit": "string", "normal": "string", "status": "High" | "Low" | "Normal" }
-          ],
-          "riskPrediction": "string (2-3 sentences analyzing abnormal values and potential risks)",
-          "recoveryEstimate": "string (e.g. '3-5 days with proper care')",
-          "naturalTreatments": ["string"],
-          "medicalTreatments": ["string"],
-          "exerciseReminders": [
-            { "title": "string", "time": "string (e.g. 07:00 AM)", "reason": "string" }
-          ],
-          "reportDate": "string (extract date from report if possible, else use current date)"
-        }`;
+        const modelNames = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
+        let lastError = null;
 
-        let result = null;
-        let lastErr = null;
-        for (const mName of modelsToTry) {
+        for (const mName of modelNames) {
           try {
-            const model = genAI.getGenerativeModel({ model: mName });
-            result = await model.generateContent([
-              prompt,
-              {
-                inlineData: {
-                  data: base64Data.split(',')[1],
-                  mimeType: mimeType
-                }
-              }
+            console.log(`Attempting analysis via ${mName}...`);
+            const { GoogleGenerativeAI } = await import('@google/generative-ai');
+            const client = new GoogleGenerativeAI(apiKey);
+            const model = client.getGenerativeModel({ model: mName });
+
+            const result = await model.generateContent([
+              PROMPT,
+              { inlineData: { data: base64Only, mimeType } }
             ]);
-            if (result && result.response) break;
+
+            if (!result?.response) throw new Error("No response from model");
+            let responseText = result.response.text().trim();
+
+            // Strip markdown code fences if present
+            responseText = responseText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+
+            const startIdx = responseText.indexOf('{');
+            const endIdx = responseText.lastIndexOf('}') + 1;
+
+            if (startIdx === -1 || endIdx === 0) throw new Error("AI did not return valid JSON structure.");
+
+            return JSON.parse(responseText.substring(startIdx, endIdx));
           } catch (e) {
-            lastErr = e;
-            console.warn(`Model ${mName} failed in landing page:`, e);
+            lastError = e;
+            console.warn(`${mName} failed:`, e.message);
           }
         }
+        throw new Error(`All models failed: ${lastError?.message || 'Unknown error'}`);
+      };
 
-        if (!result) throw new Error(`Report analysis failed on all models. Latest error: ${lastErr?.message}`);
-
-        const responseText = result.response.text();
-        const startIdx = responseText.indexOf('{');
-        const endIdx = responseText.lastIndexOf('}') + 1;
-        if (startIdx === -1 || endIdx === 0) throw new Error("Could not find JSON in AI response.");
-        const cleanJsonStr = responseText.substring(startIdx, endIdx);
-        return JSON.parse(cleanJsonStr);
-      }));
+      const finalReports = await Promise.all(files.map(analyzeFile));
 
       setUploading(false);
-      navigate('/dashboard', { state: { reports } });
+      navigate('/dashboard', { state: { reports: finalReports } });
 
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Failed to process the reports. Ensure your API Key is valid and the files are clear.");
+      setErrorMsg(err.message || "Failed to process the file. Please ensure your API Key is valid and the file is a clear PDF or image.");
       setUploading(false);
     }
   };
 
-  const fileToBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
 
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)', overflow: 'hidden', position: 'relative' }}>
+    <div className="landing-container">
 
       {/* Left Content Pane */}
-      <div style={{ flex: 1, padding: '2rem 5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 10 }}>
+      <div className="landing-left">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ background: 'var(--primary-glow)', padding: '0.5rem', borderRadius: '50%' }}>
-              <Activity size={28} color="var(--primary)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem' }}>
+            <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, var(--primary) 0%, rgba(0, 210, 255, 0.5) 100%)', borderRadius: '14px', transform: 'rotate(10deg)', opacity: 0.2 }}></div>
+              <div style={{ position: 'absolute', inset: '2px', background: 'linear-gradient(135deg, var(--primary) 0%, #2563eb 100%)', borderRadius: '12px' }}></div>
+              <HeartPulse size={26} color="#ffffff" style={{ position: 'relative', zIndex: 1 }} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', margin: 0, fontWeight: '700', letterSpacing: '0.5px' }}>MedIntel AI</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <h2 style={{ fontSize: '1.6rem', margin: 0, fontWeight: '800', letterSpacing: '0.2px', color: 'var(--text-primary)', lineHeight: 1 }}>MedIntel<span style={{ color: 'var(--primary)' }}>.AI</span></h2>
+              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '4px' }}>Patient Intelligence</span>
+            </div>
           </div>
           <button onClick={toggleTheme} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
@@ -171,7 +192,7 @@ const LandingPage = () => {
       </div>
 
       {/* Right Upload Pane */}
-      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+      <div className="landing-right">
 
         {/* Background decorative blob */}
         <div style={{ position: 'absolute', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(0,210,255,0.1) 0%, rgba(0,0,0,0) 70%)', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', filter: 'blur(50px)', zIndex: 0 }}></div>
