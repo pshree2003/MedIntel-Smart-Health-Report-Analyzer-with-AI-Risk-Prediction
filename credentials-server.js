@@ -1,3 +1,4 @@
+/* global process */
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -79,7 +80,7 @@ const server = createServer((req, res) => {
         appendFileSync(csvPath, row, 'utf8');
 
         sendJson(res, 200, { ok: true, file: csvPath });
-      } catch (error) {
+      } catch {
         sendJson(res, 400, { ok: false, message: 'Invalid JSON payload.' });
       }
     });

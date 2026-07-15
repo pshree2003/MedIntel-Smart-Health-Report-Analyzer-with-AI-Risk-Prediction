@@ -35,7 +35,11 @@ const Dashboard = () => {
   }, [currentUser, navigate]);
 
   const allReports = currentUser?.reports || [];
-  const [selectedReportIndex, setSelectedReportIndex] = useState(0);
+  const [selectedReportIndex, setSelectedReportIndex] = useState(() => {
+    const userStr = localStorage.getItem('medintel_current_user');
+    const savedUser = userStr ? JSON.parse(userStr) : null;
+    return savedUser?.reports?.length ? savedUser.reports.length - 1 : 0;
+  });
   
   // Safe extraction of report data
   const reportData = allReports.length > 0 ? allReports[selectedReportIndex] : null;
@@ -83,6 +87,13 @@ const Dashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem('medintel_current_user');
     navigate('/');
+  };
+
+  const openAnalyzePopup = () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setInputOption('select');
+    setIsInputModalOpen(true);
   };
 
   // Generate ID once to satisfy purity rules
@@ -659,8 +670,8 @@ Always return valid parseable JSON.`;
         {/* Right Actions */}
         <div className="nav-actions" style={{ flexWrap: 'wrap' }}>
           {reportData && (
-            <button className="nav-btn" onClick={() => { setInputOption('select'); setIsInputModalOpen(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
-              <UploadCloud size={18} /> Upload Another Report
+            <button className="nav-btn" onClick={openAnalyzePopup} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
+              <UploadCloud size={18} /> Analyze Another Report
             </button>
           )}
           <button className="nav-btn" onClick={() => navigate('/consultant', { state: { reports: allReports, selectedIndex: selectedReportIndex } })} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
@@ -692,7 +703,7 @@ Always return valid parseable JSON.`;
         <header style={{ marginBottom: '2.5rem' }}>
           <h1 style={{ fontSize: '1.75rem', margin: '0 0 0.5rem 0' }}>Patient Portal</h1>
           <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.95rem' }}>
-            {reportData ? 'Your AI-generated clinical diagnosis and health metrics.' : 'Get started by completing your medical profile details.'}
+            {allReports.length > 1 ? 'Review previous uploads, compare findings, or analyze a new report.' : (reportData ? 'Your AI-generated clinical diagnosis and health metrics.' : 'Get started by completing your medical profile details.')}
           </p>
         </header>
 
@@ -726,8 +737,71 @@ Always return valid parseable JSON.`;
               </div>
             </div>
 
+            {/* Report History Grid */}
+            <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Previous Uploaded Reports</h3>
+                  <p style={{ margin: '0.35rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.88rem' }}>Re-open any stored report or switch to a different one from the grid.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button onClick={exportPDF} className="btn-secondary" style={{ padding: '0.7rem 1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: 'var(--radius-sm)', fontWeight: '600' }}>
+                    <FileText size={18} /> Download PDF
+                  </button>
+                  <button onClick={openAnalyzePopup} className="btn-primary" style={{ padding: '0.7rem 1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <UploadCloud size={18} /> Analyze Another Report
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                {allReports.map((report, idx) => {
+                  const isActive = idx === selectedReportIndex;
+                  const score = Number(report.healthScore) || 0;
+
+                  return (
+                    <button
+                      key={`${report.reportDate || 'report'}-${idx}`}
+                      onClick={() => setSelectedReportIndex(idx)}
+                      style={{
+                        textAlign: 'left',
+                        width: '100%',
+                        padding: '1rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: isActive ? '1px solid rgba(0, 210, 255, 0.45)' : '1px solid var(--surface-border)',
+                        background: isActive ? 'rgba(0, 210, 255, 0.08)' : 'rgba(255,255,255,0.02)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        boxShadow: isActive ? '0 0 0 1px rgba(0, 210, 255, 0.15)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.9rem' }}>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>Report {idx + 1}</div>
+                          <h4 style={{ margin: '0.25rem 0 0 0', fontSize: '1rem' }}>{report.reportDate || 'Recent report'}</h4>
+                        </div>
+                        <span className={`badge ${score > 80 ? 'success' : (score > 60 ? 'warning' : 'danger')}`} style={{ fontSize: '0.72rem' }}>
+                          {score}/100
+                        </span>
+                      </div>
+
+                      <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                        {report.riskPrediction ? report.riskPrediction.substring(0, 96) : 'No AI summary available.'}{report.riskPrediction && report.riskPrediction.length > 96 ? '...' : ''}
+                      </p>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        <span>{report.medicalValues?.length || 0} tests</span>
+                        <span>{report.gender || 'N/A'}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Dashboard Grid Container */}
-            {activeTab === 'overview' ? (
+            {(activeTab === 'overview' || activeTab === 'tracker') ? (
               <div className="dashboard-grid">
                 
                 {/* Top KPI row - health score */}

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield, Cpu, HeartPulse, Sun, Moon, UserPlus, LogIn,
   Stethoscope, Mail, Lock, Eye, EyeOff, Upload, CheckCircle,
-  AlertTriangle, User, Phone, BookOpen, Briefcase, X
+  AlertTriangle, User, Phone, BookOpen, Briefcase, X, ShieldAlert
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -26,24 +26,6 @@ const labelStyle = { fontSize: '0.78rem', color: 'var(--text-secondary)', margin
 
 const credentialSheetKey = 'medintel_patient_credentials_sheet';
 
-const csvEscape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-
-const buildCredentialSheet = (rows) => {
-  const header = ['name', 'email', 'password', 'mobile number'];
-  const lines = [header.map(csvEscape).join(',')];
-
-  rows.forEach((row) => {
-    lines.push([
-      csvEscape(row.name),
-      csvEscape(row.email),
-      csvEscape(row.password),
-      csvEscape(row.phone)
-    ].join(','));
-  });
-
-  return lines.join('\n');
-};
-
 const persistCredentialRow = async (row) => {
   try {
     const response = await fetch('http://localhost:3001/api/credentials', {
@@ -57,12 +39,24 @@ const persistCredentialRow = async (row) => {
     }
 
     return true;
-  } catch (error) {
+  } catch {
     const existingRows = JSON.parse(localStorage.getItem(credentialSheetKey) || '[]');
     localStorage.setItem(credentialSheetKey, JSON.stringify([...existingRows, row]));
     return false;
   }
 };
+
+const Err = ({ msg }) => msg ? (
+  <div style={{ padding: '0.6rem 0.85rem', background: 'rgba(231,76,60,0.1)', borderLeft: '3px solid var(--danger)', color: 'var(--danger)', fontSize: '0.82rem', borderRadius: '4px', marginBottom: '0.75rem' }}>
+    <AlertTriangle size={13} style={{ marginRight: '0.35rem', verticalAlign: 'middle' }} />{msg}
+  </div>
+) : null;
+
+const Ok = ({ msg }) => msg ? (
+  <div style={{ padding: '0.6rem 0.85rem', background: 'rgba(46,204,113,0.1)', borderLeft: '3px solid var(--success)', color: 'var(--success)', fontSize: '0.82rem', borderRadius: '4px', marginBottom: '0.75rem' }}>
+    <CheckCircle size={13} style={{ marginRight: '0.35rem', verticalAlign: 'middle' }} />{msg}
+  </div>
+) : null;
 
 /* ══════════════════════════════════════════
    PATIENT AUTH PANEL (Login / Register tabs)
@@ -92,9 +86,20 @@ const PatientAuth = ({ onSuccess }) => {
   const handleLogin = (e) => {
     e.preventDefault();
     setLoginErr('');
+    // Admin must use the dedicated Admin Portal — block access here
+    if (loginEmail.toLowerCase() === 'admin@medintel.ai') {
+      return setLoginErr('Admin access is restricted. Please use the Admin Portal to login.');
+    }
+    const verifiedDocs = JSON.parse(localStorage.getItem('medintel_verified_doctors') || '[]');
+    if (verifiedDocs.some(d => d.email && d.email.toLowerCase() === loginEmail.toLowerCase())) {
+      return setLoginErr('Doctor access is restricted here. Please use the Doctor Portal.');
+    }
     const users = JSON.parse(localStorage.getItem('medintel_users') || '[]');
-    const found = users.find(u => u.email.toLowerCase() === loginEmail.toLowerCase() && u.password === regPass || u.email.toLowerCase() === loginEmail.toLowerCase() && u.password === loginPass);
+    const found = users.find(u => u.email.toLowerCase() === loginEmail.toLowerCase() && u.password === loginPass);
     if (!found) return setLoginErr('Incorrect email or password.');
+    if (found.role === 'admin') {
+      return setLoginErr('Admin accounts must login via the Admin Portal.');
+    }
     localStorage.setItem('medintel_current_user', JSON.stringify(found));
     sessionStorage.setItem('medintel_open_upload_popup', '1');
     onSuccess('/dashboard');
@@ -138,21 +143,9 @@ const PatientAuth = ({ onSuccess }) => {
         transition: 'all 0.2s'
       }}
     >
-      <Icon size={15} /> {label}
+      {React.createElement(Icon, { size: 15 })} {label}
     </button>
   );
-
-  const Err = ({ msg }) => msg ? (
-    <div style={{ padding: '0.6rem 0.85rem', background: 'rgba(231,76,60,0.1)', borderLeft: '3px solid var(--danger)', color: 'var(--danger)', fontSize: '0.82rem', borderRadius: '4px', marginBottom: '0.75rem' }}>
-      <AlertTriangle size={13} style={{ marginRight: '0.35rem', verticalAlign: 'middle' }} />{msg}
-    </div>
-  ) : null;
-
-  const Ok = ({ msg }) => msg ? (
-    <div style={{ padding: '0.6rem 0.85rem', background: 'rgba(46,204,113,0.1)', borderLeft: '3px solid var(--success)', color: 'var(--success)', fontSize: '0.82rem', borderRadius: '4px', marginBottom: '0.75rem' }}>
-      <CheckCircle size={13} style={{ marginRight: '0.35rem', verticalAlign: 'middle' }} />{msg}
-    </div>
-  ) : null;
 
   return (
     <div>
@@ -265,19 +258,27 @@ const SpecialistModal = ({ onClose }) => {
     if (!certFile)          return setErr('Please upload your medical degree / registration certificate.');
 
     setSubmitting(true);
-    // Simulate verification processing + "email" sent
-    setTimeout(() => {
-      // Store pending specialist
+
+    // Convert uploaded files to base64 so admin can preview them
+    const toBase64 = (file) => new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+
+    Promise.all([toBase64(idFile), toBase64(certFile)]).then(([idBase64, certBase64]) => {
       const pending = JSON.parse(localStorage.getItem('medintel_pending_specialists') || '[]');
       pending.push({
         name, email, phone, specialty, regNum, hospital, expYears,
         idFileName: idFile.name, certFileName: certFile.name,
+        idFileData: idBase64,
+        certFileData: certBase64,
         status: 'Pending Verification', submittedAt: new Date().toISOString()
       });
       localStorage.setItem('medintel_pending_specialists', JSON.stringify(pending));
       setSubmitting(false);
       setStep(2);
-    }, 1800);
+    });
   };
 
   const IS = inputStyle(theme);
@@ -430,6 +431,16 @@ const LandingPage = () => {
 
   const [showSpecialistModal, setShowSpecialistModal] = useState(false);
 
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (currentUser.role === 'doctor') {
+        navigate('/doctor-dashboard', { replace: true });
+      }
+    }
+  }, [currentUser, navigate]);
+
   const handleLogout = () => {
     localStorage.removeItem('medintel_current_user');
     window.location.reload();
@@ -469,6 +480,37 @@ const LandingPage = () => {
                 </button>
               </>
             )}
+            <button
+              onClick={() => navigate('/doctor-login')}
+              title="Doctor Portal"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                background: 'rgba(52,152,219,0.06)', border: '1px solid rgba(52,152,219,0.18)',
+                color: '#3498db', padding: '0.45rem 1rem', borderRadius: 'var(--radius-full)',
+                cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem',
+                transition: 'all 0.2s',
+                marginRight: '0.5rem'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,152,219,0.14)'; e.currentTarget.style.borderColor = '#3498db'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,152,219,0.06)'; e.currentTarget.style.borderColor = 'rgba(52,152,219,0.18)'; }}
+            >
+              <Stethoscope size={14} /> Doctor Portal
+            </button>
+            <button
+              onClick={() => navigate('/admin-login')}
+              title="Admin Portal"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                background: 'rgba(231,76,60,0.06)', border: '1px solid rgba(231,76,60,0.18)',
+                color: '#e74c3c', padding: '0.45rem 1rem', borderRadius: 'var(--radius-full)',
+                cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(231,76,60,0.14)'; e.currentTarget.style.borderColor = '#e74c3c'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(231,76,60,0.06)'; e.currentTarget.style.borderColor = 'rgba(231,76,60,0.18)'; }}
+            >
+              <ShieldAlert size={14} /> Admin
+            </button>
             <button onClick={toggleTheme} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
