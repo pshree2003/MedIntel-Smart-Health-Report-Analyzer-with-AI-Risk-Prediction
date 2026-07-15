@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, User, MapPin, Star, Calendar, Phone, HeartPulse, Activity as ActivityIcon, LayoutDashboard, TrendingUp, X, BadgeCheck, Video, Wifi, Clock, Award, Building2, Stethoscope, FileText } from 'lucide-react';
+import { ArrowLeft, User, MapPin, Star, Calendar, Phone, HeartPulse, Activity as ActivityIcon, LayoutDashboard, TrendingUp, X, BadgeCheck, Video, Wifi, Clock, Award, Building2, Stethoscope, FileText, LocateFixed } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -7,6 +7,8 @@ const BookConsultant = () => {
   const navigate = useNavigate();
   const consultationFee = '₹499';
   const [city, setCity] = useState('');
+  const [locationLabel, setLocationLabel] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
   const [isSearchingDoctors, setIsSearchingDoctors] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -73,6 +75,108 @@ const BookConsultant = () => {
     navigate('/');
   };
 
+  const buildPrintableDocument = (title, bodyHtml) => `
+    <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          @page { size: A4; }
+          html, body {
+            background: #fff;
+            color: #111;
+            font-family: Arial, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          * { box-sizing: border-box; }
+          h1, h2, h3, h4, p { margin: 0 0 10px 0; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #d9d9d9; padding: 8px; text-align: left; font-size: 12px; }
+          th { background: #f5f7fa; }
+          .muted { color: #555; }
+          .section { margin-bottom: 16px; }
+          .header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #00a6d6; padding-bottom: 12px; margin-bottom: 16px; align-items: flex-start; }
+          .brand { display: flex; align-items: center; gap: 10px; }
+          .brand img { width: 38px; height: 38px; display: block; }
+          .brand-name { font-size: 18px; font-weight: 800; letter-spacing: 0.2px; }
+          .brand-sub { font-size: 11px; color: #555; margin-top: 2px; }
+          .footer { margin-top: 24px; text-align: right; }
+        </style>
+      </head>
+      <body>
+        ${bodyHtml}
+      </body>
+    </html>
+  `;
+
+  const extractLocationLabel = (place) => {
+    if (!place) return '';
+    const parts = [
+      place.address?.suburb,
+      place.address?.neighbourhood,
+      place.address?.city,
+      place.address?.town,
+      place.address?.village,
+      place.address?.county,
+      place.address?.state
+    ].filter(Boolean);
+
+    const uniqueParts = [...new Set(parts)];
+    return uniqueParts.slice(0, 2).join(', ');
+  };
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Location access is not supported in this browser.');
+      return;
+    }
+
+    setIsLocating(true);
+    setBookingMessage('');
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        const { latitude, longitude } = position.coords;
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+          {
+            headers: {
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        const place = await response.json();
+        const resolvedLabel = extractLocationLabel(place) || place.display_name?.split(',').slice(0, 2).join(', ') || '';
+        const resolvedCity = place.address?.city || place.address?.town || place.address?.village || place.address?.county || '';
+        const nextSearch = resolvedCity || resolvedLabel;
+
+        if (!nextSearch) {
+          throw new Error('Could not resolve your city from location.');
+        }
+
+        setLocationLabel(resolvedLabel || nextSearch);
+        setCity(nextSearch);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        setIsLocating(false);
+        handleSearchDoctors(nextSearch);
+      } catch (error) {
+        setIsLocating(false);
+        alert(error.message || 'Unable to determine your nearby location.');
+      }
+    }, (error) => {
+      setIsLocating(false);
+      const message = error.code === error.PERMISSION_DENIED
+        ? 'Location permission was denied.'
+        : 'Unable to access your current location.';
+      alert(message);
+    }, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 300000
+    });
+  };
+
   const openA4PrintWindow = (title, bodyHtml) => {
     const printWindow = window.open('', '_blank', 'width=900,height=1200');
     if (!printWindow) {
@@ -80,46 +184,78 @@ const BookConsultant = () => {
       return null;
     }
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            @page { size: A4; }
-            html, body {
-              background: #fff;
-              color: #111;
-              font-family: Arial, sans-serif;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            * { box-sizing: border-box; }
-            h1, h2, h3, h4, p { margin: 0 0 10px 0; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #d9d9d9; padding: 8px; text-align: left; font-size: 12px; }
-            th { background: #f5f7fa; }
-            .muted { color: #555; }
-            .section { margin-bottom: 16px; }
-            .header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #00a6d6; padding-bottom: 12px; margin-bottom: 16px; align-items: flex-start; }
-            .brand { display: flex; align-items: center; gap: 10px; }
-            .brand img { width: 38px; height: 38px; display: block; }
-            .brand-name { font-size: 18px; font-weight: 800; letter-spacing: 0.2px; }
-            .brand-sub { font-size: 11px; color: #555; margin-top: 2px; }
-            .footer { margin-top: 24px; text-align: right; }
-          </style>
-        </head>
-        <body>
-          ${bodyHtml}
-        </body>
-      </html>
-    `);
+    printWindow.document.write(buildPrintableDocument(title, bodyHtml));
     printWindow.document.close();
     printWindow.focus();
     return printWindow;
   };
 
+  const downloadPrintableDocument = (filename, title, bodyHtml) => {
+    const blob = new Blob([buildPrintableDocument(title, bodyHtml)], { type: 'text/html;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+  };
+
   const handlePrintPrescription = () => {
     if (!viewingPrescription) return;
+
+    const prescriptionBodyHtml = `
+      <div class="header">
+        <div class="brand">
+          <img src="/favicon.svg" alt="MedIntel logo" />
+          <div>
+            <div class="brand-name">MedIntel<span style="color:#00a6d6">.AI</span></div>
+            <div class="brand-sub">Verified Medical Telehealth Network</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <p><strong>${viewingPrescription.doctorName || ''}</strong></p>
+          <p>${viewingPrescription.doctorSpec || ''}</p>
+          <p>${viewingPrescription.doctorHospital || ''}</p>
+          <p>Reg. No.: ${viewingPrescription.doctorRegNum || ''}</p>
+        </div>
+      </div>
+      <div class="section">
+        <p><strong>Patient:</strong> ${currentUser?.name || ''}</p>
+        <p><strong>Date Prescribed:</strong> ${viewingPrescription.date || new Date().toLocaleDateString()}</p>
+      </div>
+      <div class="section">
+        <h3>Prescribed Drugs</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Dosage</th>
+              <th>Duration</th>
+              <th>Instruction</th>
+            </tr>
+          </thead>
+          <tbody>${(viewingPrescription.medications || []).map((med) => `
+            <tr>
+              <td>${med.name || ''}</td>
+              <td>${med.dosage || ''}</td>
+              <td>${med.duration || ''}</td>
+              <td>${med.instruction || ''}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      </div>
+      <div class="section">
+        <h3>Clinical Instructions</h3>
+        <p style="white-space: pre-wrap;">${viewingPrescription.advice || 'Take medications as directed. Rest well and hydrate.'}</p>
+        ${viewingPrescription.followUp ? `<p><strong>Follow-up:</strong> ${new Date(viewingPrescription.followUp).toLocaleDateString()}</p>` : ''}
+      </div>
+      <div class="footer">
+        <p><strong>${viewingPrescription.doctorName || ''}</strong></p>
+        <p class="muted">Electronic Rx Signature</p>
+      </div>
+    `;
 
     const medicationRows = (viewingPrescription.medications || []).map((med) => `
       <tr>
@@ -136,56 +272,75 @@ const BookConsultant = () => {
 
     const printWindow = openA4PrintWindow(
       `Prescription - ${viewingPrescription.doctorName || 'MedIntel'}`,
-      `
-        <div class="header">
-          <div class="brand">
-            <img src="/favicon.svg" alt="MedIntel logo" />
-            <div>
-              <div class="brand-name">MedIntel<span style="color:#00a6d6">.AI</span></div>
-              <div class="brand-sub">Verified Medical Telehealth Network</div>
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <p><strong>${viewingPrescription.doctorName || ''}</strong></p>
-            <p>${viewingPrescription.doctorSpec || ''}</p>
-            <p>${viewingPrescription.doctorHospital || ''}</p>
-            <p>Reg. No.: ${viewingPrescription.doctorRegNum || ''}</p>
-          </div>
-        </div>
-        <div class="section">
-          <p><strong>Patient:</strong> ${currentUser?.name || ''}</p>
-          <p><strong>Date Prescribed:</strong> ${viewingPrescription.date || new Date().toLocaleDateString()}</p>
-        </div>
-        <div class="section">
-          <h3>Prescribed Drugs</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Medicine</th>
-                <th>Dosage</th>
-                <th>Duration</th>
-                <th>Instruction</th>
-              </tr>
-            </thead>
-            <tbody>${medicationRows}</tbody>
-          </table>
-        </div>
-        <div class="section">
-          <h3>Clinical Instructions</h3>
-          <p style="white-space: pre-wrap;">${viewingPrescription.advice || 'Take medications as directed. Rest well and hydrate.'}</p>
-          ${followUpRow}
-        </div>
-        <div class="footer">
-          <p><strong>${viewingPrescription.doctorName || ''}</strong></p>
-          <p class="muted">Electronic Rx Signature</p>
-        </div>
-      `
+      prescriptionBodyHtml
     );
     if (!printWindow) {
       return;
     }
     printWindow.onafterprint = () => printWindow.close();
     setTimeout(() => printWindow.print(), 250);
+  };
+
+  const handleDownloadPrescription = () => {
+    if (!viewingPrescription) return;
+
+    const prescriptionBodyHtml = `
+      <div class="header">
+        <div class="brand">
+          <img src="/favicon.svg" alt="MedIntel logo" />
+          <div>
+            <div class="brand-name">MedIntel<span style="color:#00a6d6">.AI</span></div>
+            <div class="brand-sub">Verified Medical Telehealth Network</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <p><strong>${viewingPrescription.doctorName || ''}</strong></p>
+          <p>${viewingPrescription.doctorSpec || ''}</p>
+          <p>${viewingPrescription.doctorHospital || ''}</p>
+          <p>Reg. No.: ${viewingPrescription.doctorRegNum || ''}</p>
+        </div>
+      </div>
+      <div class="section">
+        <p><strong>Patient:</strong> ${currentUser?.name || ''}</p>
+        <p><strong>Date Prescribed:</strong> ${viewingPrescription.date || new Date().toLocaleDateString()}</p>
+      </div>
+      <div class="section">
+        <h3>Prescribed Drugs</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Dosage</th>
+              <th>Duration</th>
+              <th>Instruction</th>
+            </tr>
+          </thead>
+          <tbody>${(viewingPrescription.medications || []).map((med) => `
+            <tr>
+              <td>${med.name || ''}</td>
+              <td>${med.dosage || ''}</td>
+              <td>${med.duration || ''}</td>
+              <td>${med.instruction || ''}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      </div>
+      <div class="section">
+        <h3>Clinical Instructions</h3>
+        <p style="white-space: pre-wrap;">${viewingPrescription.advice || 'Take medications as directed. Rest well and hydrate.'}</p>
+        ${viewingPrescription.followUp ? `<p><strong>Follow-up:</strong> ${new Date(viewingPrescription.followUp).toLocaleDateString()}</p>` : ''}
+      </div>
+      <div class="footer">
+        <p><strong>${viewingPrescription.doctorName || ''}</strong></p>
+        <p class="muted">Electronic Rx Signature</p>
+      </div>
+    `;
+
+    downloadPrintableDocument(
+      `Prescription-${(viewingPrescription.doctorName || 'MedIntel').replace(/\s+/g, '_')}.html`,
+      `Prescription - ${viewingPrescription.doctorName || 'MedIntel'}`,
+      prescriptionBodyHtml
+    );
   };
 
   const handlePrintReceipt = () => {
@@ -200,36 +355,38 @@ const BookConsultant = () => {
             ? `Bank: ${viewingReceipt.paymentDetails?.bankName || 'N/A'}`
             : `Wallet ID: ${viewingReceipt.paymentDetails?.walletId || 'N/A'}`;
 
+    const receiptBodyHtml = `
+      <div class="header">
+        <div class="brand">
+          <img src="/favicon.svg" alt="MedIntel logo" />
+          <div>
+            <div class="brand-name">MedIntel<span style="color:#00a6d6">.AI</span></div>
+            <div class="brand-sub">Consultation Fee Receipt</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <p><strong>${viewingReceipt.doctorName || ''}</strong></p>
+          <p>${viewingReceipt.doctorSpec || ''}</p>
+          <p>${viewingReceipt.doctorHospital || ''}</p>
+        </div>
+      </div>
+      <div class="section">
+        <p><strong>Receipt Number:</strong> ${viewingReceipt.receiptNumber || viewingReceipt.paymentReference}</p>
+        <p><strong>Patient:</strong> ${viewingReceipt.patientName}</p>
+        <p><strong>Amount Paid:</strong> ${viewingReceipt.amount}</p>
+        <p><strong>Payment Method:</strong> ${(viewingReceipt.paymentMethod || 'UPI').toUpperCase()}</p>
+        <p><strong>Payment Details:</strong> ${paymentDetailsText}</p>
+        <p><strong>Consultation Slot:</strong> ${viewingReceipt.date} at ${viewingReceipt.time} (${viewingReceipt.consultationMode})</p>
+      </div>
+      <div class="footer">
+        <p><strong>MedIntel</strong></p>
+        <p class="muted">Consultation fee paid successfully</p>
+      </div>
+    `;
+
     const printWindow = openA4PrintWindow(
       `Receipt - ${viewingReceipt.doctorName || 'MedIntel'}`,
-      `
-        <div class="header">
-          <div class="brand">
-            <img src="/favicon.svg" alt="MedIntel logo" />
-            <div>
-              <div class="brand-name">MedIntel<span style="color:#00a6d6">.AI</span></div>
-              <div class="brand-sub">Consultation Fee Receipt</div>
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <p><strong>${viewingReceipt.doctorName || ''}</strong></p>
-            <p>${viewingReceipt.doctorSpec || ''}</p>
-            <p>${viewingReceipt.doctorHospital || ''}</p>
-          </div>
-        </div>
-        <div class="section">
-          <p><strong>Receipt Number:</strong> ${viewingReceipt.receiptNumber || viewingReceipt.paymentReference}</p>
-          <p><strong>Patient:</strong> ${viewingReceipt.patientName}</p>
-          <p><strong>Amount Paid:</strong> ${viewingReceipt.amount}</p>
-          <p><strong>Payment Method:</strong> ${(viewingReceipt.paymentMethod || 'UPI').toUpperCase()}</p>
-          <p><strong>Payment Details:</strong> ${paymentDetailsText}</p>
-          <p><strong>Consultation Slot:</strong> ${viewingReceipt.date} at ${viewingReceipt.time} (${viewingReceipt.consultationMode})</p>
-        </div>
-        <div class="footer">
-          <p><strong>MedIntel</strong></p>
-          <p class="muted">Consultation fee paid successfully</p>
-        </div>
-      `
+      receiptBodyHtml
     );
     if (!printWindow) {
       return;
@@ -237,6 +394,54 @@ const BookConsultant = () => {
 
     printWindow.onafterprint = () => printWindow.close();
     setTimeout(() => printWindow.print(), 250);
+  };
+
+  const handleDownloadReceipt = () => {
+    if (!viewingReceipt) return;
+
+    const paymentDetailsText =
+      viewingReceipt.paymentMethod === 'upi'
+        ? `UPI ID: ${viewingReceipt.paymentDetails?.upiId || 'N/A'}`
+        : viewingReceipt.paymentMethod === 'card'
+          ? `Cardholder: ${viewingReceipt.paymentDetails?.cardName || 'N/A'} | Card: ${viewingReceipt.paymentDetails?.cardNumber || 'N/A'} | Expiry: ${viewingReceipt.paymentDetails?.cardExpiry || 'N/A'}`
+          : viewingReceipt.paymentMethod === 'netbanking'
+            ? `Bank: ${viewingReceipt.paymentDetails?.bankName || 'N/A'}`
+            : `Wallet ID: ${viewingReceipt.paymentDetails?.walletId || 'N/A'}`;
+
+    const receiptBodyHtml = `
+      <div class="header">
+        <div class="brand">
+          <img src="/favicon.svg" alt="MedIntel logo" />
+          <div>
+            <div class="brand-name">MedIntel<span style="color:#00a6d6">.AI</span></div>
+            <div class="brand-sub">Consultation Fee Receipt</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <p><strong>${viewingReceipt.doctorName || ''}</strong></p>
+          <p>${viewingReceipt.doctorSpec || ''}</p>
+          <p>${viewingReceipt.doctorHospital || ''}</p>
+        </div>
+      </div>
+      <div class="section">
+        <p><strong>Receipt Number:</strong> ${viewingReceipt.receiptNumber || viewingReceipt.paymentReference}</p>
+        <p><strong>Patient:</strong> ${viewingReceipt.patientName}</p>
+        <p><strong>Amount Paid:</strong> ${viewingReceipt.amount}</p>
+        <p><strong>Payment Method:</strong> ${(viewingReceipt.paymentMethod || 'UPI').toUpperCase()}</p>
+        <p><strong>Payment Details:</strong> ${paymentDetailsText}</p>
+        <p><strong>Consultation Slot:</strong> ${viewingReceipt.date} at ${viewingReceipt.time} (${viewingReceipt.consultationMode})</p>
+      </div>
+      <div class="footer">
+        <p><strong>MedIntel</strong></p>
+        <p class="muted">Consultation fee paid successfully</p>
+      </div>
+    `;
+
+    downloadPrintableDocument(
+      `Receipt-${(viewingReceipt.doctorName || 'MedIntel').replace(/\s+/g, '_')}.html`,
+      `Receipt - ${viewingReceipt.doctorName || 'MedIntel'}`,
+      receiptBodyHtml
+    );
   };
 
   const syncConsultHistory = (nextHistory) => {
@@ -374,8 +579,8 @@ const BookConsultant = () => {
     });
   };
 
-  const handleSearchDoctors = async () => {
-    if (!city) return;
+  const handleSearchDoctors = async (searchCity = city) => {
+    if (!searchCity) return;
     
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
     if (!apiKey) {
@@ -387,7 +592,7 @@ const BookConsultant = () => {
     setDoctors([]);
     
     const HOSPITAL_PROMPT = `You are a medical facility discovery assistant for India.
-List 8-10 real, well-known hospitals and specialist doctors in "${city}", India.
+List 8-10 real, well-known hospitals and specialist doctors in "${searchCity}", India.
 Return ONLY valid JSON (no markdown, no backticks, no extra text) as an array matching this EXACT structure:
 [
   {
@@ -399,7 +604,7 @@ Return ONLY valid JSON (no markdown, no backticks, no extra text) as an array ma
     "fee": "string (consultation fee range, e.g. ₹500 - ₹1500)"
   }
 ]
-Use real hospital names that actually exist in ${city}. Return at least 6 entries.`;
+  Use real hospital names that actually exist in ${searchCity}. Return at least 6 entries.`;
 
     try {
       let fetchedDoctors = null;
@@ -438,7 +643,7 @@ Use real hospital names that actually exist in ${city}. Return at least 6 entrie
       if (!fetchedDoctors) {
         console.warn("AI Discovery failed. Using OpenStreetMap fallback...");
         const osmResponse = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=hospital+in+${encodeURIComponent(city)}&format=json&limit=12`
+          `https://nominatim.openstreetmap.org/search?q=hospital+in+${encodeURIComponent(searchCity)}&format=json&limit=12`
         );
         const osmData = await osmResponse.json();
         
@@ -453,21 +658,21 @@ Use real hospital names that actually exist in ${city}. Return at least 6 entrie
             fee: `₹${400 + index * 100} - ₹${900 + index * 150}`
           }));
         } else {
-          throw new Error(`Could not find any hospitals in "${city}". Please try another city name.`);
+          throw new Error(`Could not find any hospitals in "${searchCity}". Please try another city name.`);
         }
       }
 
       const adminVerified = JSON.parse(localStorage.getItem('medintel_verified_doctors') || '[]');
       const matchingVerified = adminVerified
-        .filter(d => d.city && d.city.toLowerCase() === city.trim().toLowerCase())
+        .filter(d => d.city && d.city.toLowerCase() === searchCity.trim().toLowerCase())
         .map(d => ({ ...d, isVerifiedPanel: true }));
 
-      setDoctors([...matchingVerified, ...fetchedDoctors.map((doctor) => ({ ...doctor, city }))]);
+      setDoctors([...matchingVerified, ...fetchedDoctors.map((doctor) => ({ ...doctor, city: searchCity }))]);
     } catch (err) {
       console.error("Discovery error:", err);
       const adminVerified = JSON.parse(localStorage.getItem('medintel_verified_doctors') || '[]');
       const matchingVerified = adminVerified
-        .filter(d => d.city && d.city.toLowerCase() === city.trim().toLowerCase())
+        .filter(d => d.city && d.city.toLowerCase() === searchCity.trim().toLowerCase())
         .map(d => ({ ...d, isVerifiedPanel: true }));
       if (matchingVerified.length > 0) {
         setDoctors(matchingVerified);
@@ -580,10 +785,19 @@ Use real hospital names that actually exist in ${city}. Return at least 6 entrie
                   style={{ width: '100%', background: 'rgba(150,150,150,0.05)', border: '1px solid var(--surface-border)', padding: '1rem 1rem 1rem 3rem', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)', outline: 'none', fontSize: '1rem' }}
                 />
               </div>
-              <button className="btn-primary" onClick={handleSearchDoctors} disabled={!city || isSearchingDoctors} style={{ height: '54px', padding: '0 2rem', fontSize: '1rem' }}>
+              <button type="button" className="btn-secondary" onClick={handleUseMyLocation} disabled={isLocating || isSearchingDoctors} style={{ height: '54px', padding: '0 1.1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem', whiteSpace: 'nowrap' }}>
+                <LocateFixed size={16} /> {isLocating ? 'Locating...' : 'Use My Location'}
+              </button>
+              <button type="button" className="btn-primary" onClick={() => handleSearchDoctors(city)} disabled={!city || isSearchingDoctors} style={{ height: '54px', padding: '0 2rem', fontSize: '1rem' }}>
                 {isSearchingDoctors ? 'Fetching Hospital Data...' : 'Search Hospitals'}
               </button>
             </div>
+
+            {locationLabel && !isSearchingDoctors && (
+              <div style={{ marginTop: '-0.5rem', marginBottom: '1rem', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                Showing hospitals near <strong style={{ color: 'var(--text-primary)' }}>{locationLabel}</strong>
+              </div>
+            )}
 
             {!isSearchingDoctors && doctors.length === 0 && (
               <div className="glass-card animate-fade-in" style={{ padding: '3rem', textAlign: 'center', marginTop: '2rem' }}>
@@ -1144,22 +1358,40 @@ Use real hospital names that actually exist in ${city}. Return at least 6 entrie
 
             {/* Print & Close Buttons */}
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginTop: '1.5rem', borderTop: '1px solid var(--surface-border)', paddingTop: '1.25rem' }}>
-              <button
-                type="button"
-                onClick={handlePrintPrescription}
-                style={{
-                  padding: '0.55rem 1.25rem',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid var(--surface-border)',
-                  color: 'var(--text-primary)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.85rem',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                Print Prescription
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handlePrintPrescription}
+                  style={{
+                    padding: '0.55rem 1.25rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--surface-border)',
+                    color: 'var(--text-primary)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Print Prescription
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPrescription}
+                  style={{
+                    padding: '0.55rem 1.25rem',
+                    background: 'rgba(0,210,255,0.08)',
+                    border: '1px solid rgba(0,210,255,0.2)',
+                    color: 'var(--primary)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Download Prescription
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setViewingPrescription(null)}
@@ -1226,9 +1458,14 @@ Use real hospital names that actually exist in ${city}. Return at least 6 entrie
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginTop: '1.5rem', borderTop: '1px solid var(--surface-border)', paddingTop: '1.25rem' }}>
-              <button type="button" onClick={handlePrintReceipt} style={{ padding: '0.55rem 1.25rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>
-                Print Receipt
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button type="button" onClick={handlePrintReceipt} style={{ padding: '0.55rem 1.25rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>
+                  Print Receipt
+                </button>
+                <button type="button" onClick={handleDownloadReceipt} style={{ padding: '0.55rem 1.25rem', background: 'rgba(0,210,255,0.08)', border: '1px solid rgba(0,210,255,0.2)', color: 'var(--primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}>
+                  Download Receipt
+                </button>
+              </div>
               <button type="button" onClick={() => setViewingReceipt(null)} style={{ padding: '0.55rem 1.5rem', background: 'var(--primary)', border: 'none', color: '#fff', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}>
                 Close Receipt
               </button>

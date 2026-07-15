@@ -4,8 +4,6 @@
 [![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Runtime-Vite%208-646CFF?logo=vite)](https://vitejs.dev/)
 [![Gemini AI](https://img.shields.io/badge/AI-Google%20Gemini%20Pro-4285F4?logo=google-cloud)](https://ai.google.dev/)
-[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?logo=github)](https://github.com/pshree2003/Smart-Health-Report-Analyzer-with-AI-Risk-Prediction)
-[![Live Demo](https://img.shields.io/badge/Live-Demo-2ecc71?logo=vercel)](https://medintel-ai-shrikantp.surge.sh/)
 
 **MedIntel AI** is a professional-grade health informatics ecosystem designed to bridge the gap between complex laboratory data and actionable patient insights. By leveraging State-of-the-Art (SOTA) Multimodal Large Language Models via the **Google Gemini Pro** infrastructure, MedIntel AI automates the extraction, analysis, and visualization of clinical reports to provide a 360-degree view of a patient’s health trajectory.
 
@@ -118,7 +116,7 @@ A dual-layer routing system matches identified health risks with appropriate med
 ### Setup Guide
 1.  **Clone the Ecosystem**:
     ```bash
-    git clone https://github.com/pshree2003/Smart-Health-Report-Analyzer-with-AI-Risk-Prediction.git
+    git clone https://github.com/pshree2003/1Smart-Health-Report-Analyzer-with-AI-Risk-Prediction.git
     cd Smart-Health-Report-Analyzer-with-AI-Risk-Prediction
     ```
 2.  **Initialize Environment**:
