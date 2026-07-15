@@ -54,24 +54,53 @@ const DoctorRoute = ({ children }) => {
 
 function App() {
   useEffect(() => {
-    const migrationFlag = 'medintel_credential_reset_v1';
+    const migrationFlag = 'medintel_auth_bootstrap_v2';
     if (localStorage.getItem(migrationFlag)) {
       return;
     }
 
-    const stripPasswords = (storageKey) => {
+    const ensureArray = (storageKey) => {
       try {
         const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        if (!Array.isArray(records)) return;
-        const updatedRecords = records.map(({ password, ...rest }) => rest);
-        localStorage.setItem(storageKey, JSON.stringify(updatedRecords));
+        return Array.isArray(records) ? records : [];
       } catch {
-        localStorage.setItem(storageKey, '[]');
+        return [];
       }
     };
 
-    stripPasswords('medintel_users');
-    stripPasswords('medintel_verified_doctors');
+    const seedUsers = () => {
+      const existingUsers = ensureArray('medintel_users');
+      const demoPatient = {
+        name: 'Demo Patient',
+        email: 'patient@medintel.ai',
+        phone: '+91 90000 10001',
+        password: 'patient@2003',
+        role: 'patient',
+        reports: []
+      };
+      const updatedUsers = existingUsers.filter((user) => user?.email?.toLowerCase() !== demoPatient.email);
+      updatedUsers.push(demoPatient);
+      localStorage.setItem('medintel_users', JSON.stringify(updatedUsers));
+    };
+
+    const seedDoctors = () => {
+      const existingDoctors = ensureArray('medintel_verified_doctors');
+      const demoDoctor = {
+        name: 'Demo Doctor',
+        email: 'doctor@medintel.ai',
+        password: 'doctor@2003',
+        spec: 'General Physician',
+        regNum: 'MED-2003-001',
+        hospital: 'MedIntel Demo Hospital',
+        role: 'doctor'
+      };
+      const updatedDoctors = existingDoctors.filter((doctor) => doctor?.email?.toLowerCase() !== demoDoctor.email);
+      updatedDoctors.push(demoDoctor);
+      localStorage.setItem('medintel_verified_doctors', JSON.stringify(updatedDoctors));
+    };
+
+    seedUsers();
+    seedDoctors();
     localStorage.removeItem('medintel_patient_credentials_sheet');
     localStorage.setItem(migrationFlag, '1');
   }, []);
