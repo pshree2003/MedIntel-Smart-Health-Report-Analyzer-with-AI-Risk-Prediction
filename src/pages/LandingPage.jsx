@@ -61,7 +61,7 @@ const Ok = ({ msg }) => msg ? (
 /* ══════════════════════════════════════════
    PATIENT AUTH PANEL (Login / Register tabs)
 ══════════════════════════════════════════ */
-const PatientAuth = ({ onSuccess }) => {
+const PatientAuth = ({ onSuccess, onShowWelcomeEmail }) => {
   const [tab, setTab] = useState('login'); // 'login' | 'register'
   const { theme } = useTheme();
   const authPanelClass = tab === 'login' ? 'auth-swap-panel auth-swap-login' : 'auth-swap-panel auth-swap-register';
@@ -87,7 +87,7 @@ const PatientAuth = ({ onSuccess }) => {
     e.preventDefault();
     setLoginErr('');
     // Admin must use the dedicated Admin Portal — block access here
-    if (loginEmail.toLowerCase() === 'admin@medintel.ai') {
+    if (loginEmail.toLowerCase() === 'admin@medintel.ai' || loginEmail.toLowerCase() === 'demoadmin@gmail.com') {
       return setLoginErr('Admin access is restricted. Please use the Admin Portal to login.');
     }
     const verifiedDocs = JSON.parse(localStorage.getItem('medintel_verified_doctors') || '[]');
@@ -126,8 +126,30 @@ const PatientAuth = ({ onSuccess }) => {
     sessionStorage.setItem('medintel_open_upload_popup', '1');
     persistCredentialRow({ name: regName.trim(), email: regEmail.toLowerCase(), password: regPass, phone: regPhone })
       .finally(() => {
-        setRegOk('Account created! Redirecting…');
-        setTimeout(() => onSuccess('/dashboard'), 1000);
+        const emailPayload = {
+          recipient: regEmail.toLowerCase(),
+          patientName: regName.trim(),
+          username: regEmail.toLowerCase(),
+          password: regPass,
+          sentAt: new Date().toLocaleString()
+        };
+
+        const sentEmails = JSON.parse(localStorage.getItem('medintel_sent_emails') || '[]');
+        sentEmails.unshift({
+          id: Date.now(),
+          type: 'PATIENT_WELCOME',
+          to: regEmail.toLowerCase(),
+          subject: `Welcome to MedIntel.AI Ecosystem!`,
+          data: emailPayload
+        });
+        localStorage.setItem('medintel_sent_emails', JSON.stringify(sentEmails));
+
+        setRegOk('Account created! Showing welcome email...');
+        if (onShowWelcomeEmail) {
+          onShowWelcomeEmail(emailPayload);
+        } else {
+          setTimeout(() => onSuccess('/dashboard'), 1000);
+        }
       });
   };
 
@@ -430,6 +452,7 @@ const LandingPage = () => {
   const currentUser    = currentUserStr ? JSON.parse(currentUserStr) : null;
 
   const [showSpecialistModal, setShowSpecialistModal] = useState(false);
+  const [welcomeEmailModal, setWelcomeEmailModal] = useState(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -599,7 +622,7 @@ const LandingPage = () => {
                 <h2 style={{ margin: '0 0 0.3rem 0', fontSize: '1.6rem', fontWeight: '800' }}>Patient Portal</h2>
                 <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.88rem' }}>Login or create an account to access your health dashboard.</p>
               </div>
-              <PatientAuth onSuccess={handleAuthSuccess} />
+              <PatientAuth onSuccess={handleAuthSuccess} onShowWelcomeEmail={setWelcomeEmailModal} />
             </>
           )}
         </div>
@@ -607,6 +630,98 @@ const LandingPage = () => {
 
       {/* Specialist Modal */}
       {showSpecialistModal && <SpecialistModal onClose={() => setShowSpecialistModal(false)} />}
+
+      {/* ══════════════════════════════════════
+           MODAL: PATIENT WELCOME EMAIL
+      ══════════════════════════════════════ */}
+      {welcomeEmailModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 5000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }} onClick={() => { setWelcomeEmailModal(null); navigate('/dashboard'); }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', position: 'relative', boxShadow: '0 30px 70px rgba(0,0,0,0.6)' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => { setWelcomeEmailModal(null); navigate('/dashboard'); }} style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20} /></button>
+
+            {/* Email Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid var(--surface-border)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ background: 'rgba(0, 210, 255, 0.15)', padding: '0.6rem', borderRadius: '12px' }}>
+                <Mail size={24} color="#00d2ff" />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#00d2ff', fontWeight: '700' }}>Email Notification Sent</span>
+                <h3 style={{ margin: '0.15rem 0 0 0', fontSize: '1.2rem', fontWeight: '800' }}>Welcome to MedIntel Ecosystem</h3>
+              </div>
+            </div>
+
+            {/* Email Meta Card */}
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>To Patient:</span>
+                <strong style={{ color: 'var(--primary)' }}>{welcomeEmailModal.recipient}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Subject:</span>
+                <span style={{ fontWeight: '600' }}>Welcome to MedIntel.AI Ecosystem!</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Sent At:</span>
+                <span style={{ color: 'var(--text-muted)' }}>{welcomeEmailModal.sentAt}</span>
+              </div>
+            </div>
+
+            {/* Email Content Body */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', padding: '1.25rem', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              
+              <p style={{ marginTop: 0, fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Dear {welcomeEmailModal.patientName},
+              </p>
+
+              <p style={{ color: 'var(--text-secondary)' }}>
+                Welcome! Thank you for joining the MedIntel.AI Ecosystem — your next-generation AI health analytics and clinical telehealth platform.
+              </p>
+
+              {/* Login Credentials Box */}
+              <div style={{ background: 'rgba(46, 204, 113, 0.08)', border: '1px dashed rgba(46, 204, 113, 0.3)', borderRadius: 'var(--radius-sm)', padding: '1rem', margin: '1rem 0' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2ecc71', fontWeight: '800' }}>🔑 Your Login Credentials</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Username / Email ID:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{welcomeEmailModal.username}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Password:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>******** (Hidden for security)</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Flow of MedIntel */}
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.88rem', fontWeight: '800' }}>🌟 Flow &amp; Features of MedIntel Ecosystem:</h4>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  <li><strong>📄 Upload Medical Reports:</strong> Upload your CBC, Lipid Profile, LFT, KFT, or Blood Sugar reports. MedIntel AI will automatically extract all parameters.</li>
+                  <li><strong>🤖 AI Risk Prediction:</strong> Get instant Health Score analytics, identification of abnormal values, and AI-predicted health risks with dietary recommendations.</li>
+                  <li><strong>🩺 Doctor Consultation:</strong> Search for verified nearby specialists or schedule real-time online video consultations right from your dashboard.</li>
+                  <li><strong>📜 Digital Prescriptions:</strong> Receive clinical Rx prescriptions directly from doctors and download official Fee Receipts as PDFs.</li>
+                </ul>
+              </div>
+
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setWelcomeEmailModal(null);
+                  navigate('/dashboard');
+                }}
+                style={{ padding: '0.65rem 1.25rem', fontSize: '0.88rem', width: '100%', textAlign: 'center' }}
+              >
+                Proceed to My Dashboard
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }

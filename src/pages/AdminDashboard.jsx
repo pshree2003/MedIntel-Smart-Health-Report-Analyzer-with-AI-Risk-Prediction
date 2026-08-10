@@ -91,6 +91,7 @@ const AdminDashboard = () => {
   const [showPwdEdit, setShowPwdEdit] = useState(false);
   const [imageModal, setImageModal] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [approvalEmailModal, setApprovalEmailModal] = useState(null);
 
   // Password editing inside detail modals
   const [editPatientPwd, setEditPatientPwd] = useState('');
@@ -249,6 +250,28 @@ const AdminDashboard = () => {
 
     const updatedVerified = [...verifiedDoctors, newVerified];
     saveVerifiedDoctors(updatedVerified);
+
+    const emailPayload = {
+      recipient: newVerified.email,
+      doctorName: newVerified.name,
+      regNum: newVerified.regNum,
+      specialty: newVerified.spec,
+      username: newVerified.email,
+      password: defaultPassword,
+      sentAt: new Date().toLocaleString()
+    };
+
+    const sentEmails = JSON.parse(localStorage.getItem('medintel_sent_emails') || '[]');
+    sentEmails.unshift({
+      id: Date.now(),
+      type: 'DOCTOR_APPROVAL',
+      to: newVerified.email,
+      subject: `MedIntel.AI Verification Approved — Credentials & Portal Access`,
+      data: emailPayload
+    });
+    localStorage.setItem('medintel_sent_emails', JSON.stringify(sentEmails));
+
+    setApprovalEmailModal(emailPayload);
   };
 
   const handleRejectDoctor = (pendingDoc) => {
@@ -309,6 +332,28 @@ const AdminDashboard = () => {
 
     const updated = [...verifiedDoctors, newDoc];
     saveVerifiedDoctors(updated);
+
+    const emailPayload = {
+      recipient: newDoc.email,
+      doctorName: newDoc.name,
+      regNum: newDoc.regNum,
+      specialty: newDoc.spec,
+      username: newDoc.email,
+      password: defaultPassword,
+      sentAt: new Date().toLocaleString()
+    };
+
+    const sentEmails = JSON.parse(localStorage.getItem('medintel_sent_emails') || '[]');
+    sentEmails.unshift({
+      id: Date.now(),
+      type: 'DOCTOR_APPROVAL',
+      to: newDoc.email,
+      subject: `MedIntel.AI Verification Approved — Credentials & Portal Access`,
+      data: emailPayload
+    });
+    localStorage.setItem('medintel_sent_emails', JSON.stringify(sentEmails));
+
+    setApprovalEmailModal(emailPayload);
 
     // Reset Form & Close Modal
     setNewDocName('');
@@ -1422,6 +1467,120 @@ const AdminDashboard = () => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.75rem' }}>
               <button onClick={() => setSelectedReport(null)} className="btn-primary" style={{ padding: '0.65rem 1.5rem' }}>Close Details</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════
+           MODAL: DOCTOR APPROVAL EMAIL NOTIFICATION
+      ══════════════════════════════════════ */}
+      {approvalEmailModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 5000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }} onClick={() => setApprovalEmailModal(null)}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', position: 'relative', boxShadow: '0 30px 70px rgba(0,0,0,0.6)' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setApprovalEmailModal(null)} style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20} /></button>
+
+            {/* Email Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid var(--surface-border)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ background: 'rgba(46, 204, 113, 0.15)', padding: '0.6rem', borderRadius: '12px' }}>
+                <Mail size={24} color="#2ecc71" />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#2ecc71', fontWeight: '700' }}>Email Notification Sent</span>
+                <h3 style={{ margin: '0.15rem 0 0 0', fontSize: '1.2rem', fontWeight: '800' }}>Doctor Verification &amp; Credentials Email</h3>
+              </div>
+            </div>
+
+            {/* Email Meta Card */}
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>To Doctor:</span>
+                <strong style={{ color: 'var(--primary)' }}>{approvalEmailModal.recipient}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Subject:</span>
+                <span style={{ fontWeight: '600' }}>Welcome to MedIntel.AI Doctor Portal — Verification Approved!</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Sent At:</span>
+                <span style={{ color: 'var(--text-muted)' }}>{approvalEmailModal.sentAt}</span>
+              </div>
+            </div>
+
+            {/* Email Content Body */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', padding: '1.25rem', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              
+              <p style={{ marginTop: 0, fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Dear {approvalEmailModal.doctorName},
+              </p>
+
+              <p style={{ color: 'var(--text-secondary)' }}>
+                Greetings! We are pleased to inform you that your medical registration credentials (Reg. No: <strong>{approvalEmailModal.regNum}</strong>) have been verified and approved by the MedIntel Administrative Board. Welcome to the MedIntel AI Telehealth Network!
+              </p>
+
+              {/* Login Credentials Box */}
+              <div style={{ background: 'rgba(0, 210, 255, 0.08)', border: '1px dashed rgba(0, 210, 255, 0.3)', borderRadius: 'var(--radius-sm)', padding: '1rem', margin: '1rem 0' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '800' }}>🔑 Doctor Portal Login Credentials</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Username / Email ID:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{approvalEmailModal.username}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Default Password:</span>
+                    <strong style={{ color: '#f1c40f', background: 'rgba(241,196,15,0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{approvalEmailModal.password}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Steps to Login */}
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.88rem', fontWeight: '800' }}>🚀 Steps to Login:</h4>
+                <ol style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  <li>Go to the Doctor Portal: <strong style={{ color: 'var(--primary)' }}>http://localhost:5173/doctor-login</strong></li>
+                  <li>Enter your Username (registered email) and default password shown above.</li>
+                  <li>Access your Doctor Console &amp; Dashboard.</li>
+                </ol>
+              </div>
+
+              {/* Work & Responsibilities */}
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.88rem', fontWeight: '800' }}>🩺 Roles &amp; Clinical Responsibilities:</h4>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  <li><strong>Patient Grid View:</strong> Search &amp; access clinical profiles of assigned patients.</li>
+                  <li><strong>Daily Consultations:</strong> Manage online video appointments &amp; clinic visits.</li>
+                  <li><strong>AI Lab Report Review:</strong> Inspect patient health scores &amp; AI risk predictions.</li>
+                  <li><strong>Digital Prescriptions:</strong> Formulate and assign official digital Rx reports to patients.</li>
+                </ul>
+              </div>
+
+              {/* Privacy Notice */}
+              <div style={{ background: 'rgba(46, 204, 113, 0.08)', border: '1px solid rgba(46, 204, 113, 0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', fontSize: '0.8rem', color: '#2ecc71' }}>
+                <strong>🔒 Identity Secrecy &amp; Privacy Assurance:</strong> Your medical license details, Government ID documents, and personal contact information are strictly stored under HIPAA-compliant medical data encryption. Your identity is verified and protected.
+              </div>
+
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  navigator.clipboard.writeText(`MedIntel Doctor Login Credentials:\nUsername: ${approvalEmailModal.username}\nPassword: ${approvalEmailModal.password}\nLogin URL: http://localhost:5173/doctor-login`);
+                  alert('Doctor login credentials copied to clipboard!');
+                }}
+                style={{ padding: '0.65rem 1.25rem', fontSize: '0.88rem' }}
+              >
+                Copy Credentials
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => setApprovalEmailModal(null)}
+                style={{ padding: '0.65rem 1.25rem', fontSize: '0.88rem' }}
+              >
+                Close Email Preview
+              </button>
+            </div>
+
           </div>
         </div>
       )}

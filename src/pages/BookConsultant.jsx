@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, User, MapPin, Star, Calendar, Phone, HeartPulse, Activity as ActivityIcon, LayoutDashboard, TrendingUp, X, BadgeCheck, Video, Wifi, Clock, Award, Building2, Stethoscope, FileText, LocateFixed } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import html2pdf from 'html2pdf.js';
 
 const BookConsultant = () => {
   const navigate = useNavigate();
@@ -190,16 +190,48 @@ const BookConsultant = () => {
     return printWindow;
   };
 
-  const downloadPrintableDocument = (filename, title, bodyHtml) => {
-    const blob = new Blob([buildPrintableDocument(title, bodyHtml)], { type: 'text/html;charset=utf-8' });
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(downloadUrl);
+  const downloadPrintableDocument = async (filename, title, bodyHtml) => {
+    const pdfFilename = filename.replace(/\.(html|txt)$/i, '').concat('.pdf');
+
+    // Create temporary styled container for PDF capture
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '790px';
+    container.style.background = '#ffffff';
+    container.style.color = '#111827';
+    container.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+    container.style.padding = '20px';
+    container.innerHTML = buildPrintableDocument(title, bodyHtml);
+    document.body.appendChild(container);
+
+    const opt = {
+      margin:      [10, 10, 10, 10],
+      filename:    pdfFilename,
+      image:       { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      const pdfBlob = await html2pdf().set(opt).from(container).outputPdf('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = pdfFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('PDF generation failed. Please try again.');
+    } finally {
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+    }
   };
 
   const handlePrintPrescription = () => {
@@ -1016,7 +1048,7 @@ Return ONLY valid JSON (no markdown, no backticks, no extra text) as an array ma
 
                     {entry.prescription && (
                       <button
-                        onClick={() => setViewingPrescription(entry.prescription)}
+                        onClick={() => { setHistoryOpen(false); setViewingReceipt(null); setViewingPrescription(entry.prescription); }}
                         style={{
                           width: '100%',
                           marginTop: '1rem',

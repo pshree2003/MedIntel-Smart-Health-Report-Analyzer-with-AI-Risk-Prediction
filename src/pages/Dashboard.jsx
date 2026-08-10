@@ -10,6 +10,145 @@ import html2pdf from 'html2pdf.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useTheme } from '../context/ThemeContext';
 
+const ANALYSIS_PROFILES = {
+  laboratory: {
+    id: 'laboratory',
+    label: 'Core Laboratory Reports',
+    description: 'Tabular blood, chemistry, and pathology reports',
+    layoutHint: 'table-first layout with rows, ranges, and abnormal flags',
+    focus: 'numerical lab markers, reference ranges, trends, and risk flags'
+  },
+  radiology: {
+    id: 'radiology',
+    label: 'Core Radiology Reports',
+    description: 'Narrative-text imaging reports including 2D and 3D scans',
+    layoutHint: 'narrative imaging layout with modality, findings, impression, and severity',
+    focus: 'radiology narrative, anatomy, lesions, imaging impressions, and 2D/3D scan findings'
+  },
+  pregnancyUltrasound: {
+    id: 'pregnancyUltrasound',
+    label: 'Core Pregnancy & Ultrasound Reports',
+    description: 'Measurement and visual scan reports for pregnancy or ultrasound',
+    layoutHint: 'measurement-centric layout with gestational and biometric values',
+    focus: 'gestational age, fetal measurements, placenta, amniotic fluid, fetal heart, and ultrasound visuals'
+  },
+  geneticsCardiology: {
+    id: 'geneticsCardiology',
+    label: 'Advanced Genetics & Cardiology Reports',
+    description: 'Specialized genetics, ECG, echo, and cardiology reports',
+    layoutHint: 'specialized clinical layout with variants, biomarkers, and cardiac risk stratification',
+    focus: 'genetic markers, variant interpretation, ECG/echo findings, cardiac biomarkers, and personalized risk prediction'
+  },
+  prescriptionComputer: {
+    id: 'prescriptionComputer',
+    label: 'Computer Generated Prescription',
+    description: 'Typed prescriptions and medication plans',
+    layoutHint: 'prescription layout with medicine list, dose, frequency, duration, and doctor instructions',
+    focus: 'typed prescription instructions, dosage schedules, and medication safety'
+  },
+  prescriptionHandwritten: {
+    id: 'prescriptionHandwritten',
+    label: 'Handwritten Prescription + Digit Analyzer',
+    description: 'Handwritten prescriptions with medication and digit extraction',
+    layoutHint: 'handwriting-aware prescription layout with digit extraction and confidence notes',
+    focus: 'handwritten medicine names, dosage digits, dates, quantities, and handwriting readability'
+  }
+};
+
+const buildAnalysisPrompt = ({ profile, patientName, manualMode = false }) => `You are an expert medical AI specializing in ${profile.label}.
+${manualMode ? 'The user entered structured health values manually. Analyze them as a medical dashboard report.' : 'The user uploaded an image, PDF, or scanned medical document.'}
+Patient context: ${patientName || 'Unknown Patient'}.
+
+Use this analysis mode:
+- Report category: ${profile.label}
+- Layout style: ${profile.layoutHint}
+- Primary focus: ${profile.focus}
+
+If the document is a prescription, identify whether it is computer generated or handwritten. For handwritten prescriptions, extract the medicine names, dose digits, dates, and quantity digits as accurately as possible and mark the handwriting confidence.
+If the document is a 2D/3D medical image or imaging report, describe the modality, key findings, severity, and personalized prediction based on the image/report.
+If the document is a pregnancy or ultrasound report, extract gestational details, measurements, fetal/placental findings, and any risk flags.
+If the document is a genetics or cardiology report, interpret variants, biomarkers, ECG/echo findings, and personalized cardiovascular or genetic risk.
+
+First, check if the provided document is a genuine medical report, prescription, or report image. If it is not medical, set "isGenuineReport" to false and explain why in "fakeReportWarning".
+
+Return ONLY valid JSON (no markdown, no backticks, no extra text) matching this EXACT structure:
+{
+  "isGenuineReport": boolean,
+  "fakeReportWarning": "string (warning message if fake, otherwise empty string)",
+  "analysisMode": "${profile.id}",
+  "analysisCategory": "${profile.label}",
+  "analysisSummary": "string (2-4 sentence clinical summary of the report)",
+  "layoutType": "string (describe the detected report layout)",
+  "documentType": "string (lab, radiology, pregnancy-ultrasound, genetics-cardiology, prescription, handwritten-prescription, or unknown)",
+  "handwrittenDetected": boolean,
+  "handwritingConfidence": "string (low, medium, or high)",
+  "patientName": "string (patient full name or 'Unknown Patient')",
+  "age": "string (age as number or 'N/A')",
+  "gender": "string (Male/Female/Other or 'N/A')",
+  "address": "string (patient address or 'N/A')",
+  "referredDoctor": "string (doctor name or 'N/A')",
+  "healthScore": number (0-100, estimate based on the report or prescription safety profile),
+  "reportDate": "string (date of report or today's date)",
+  "medicalValues": [
+    {
+      "name": "string (test / measurement / medicine / finding name)",
+      "value": "string (measured value or extracted value)",
+      "unit": "string (unit of measurement)",
+      "normal": "string (normal range or expected range)",
+      "status": "string (Normal, High, Low, Slightly High, Slightly Low, Critical, or Not Applicable)"
+    }
+  ],
+  "radiologyFindings": [
+    {
+      "title": "string (imaging finding title)",
+      "detail": "string (brief clinical detail)",
+      "severity": "string (Mild, Moderate, Severe, or None)"
+    }
+  ],
+  "measurementSummary": [
+    {
+      "title": "string (measurement name)",
+      "value": "string (measurement value)",
+      "reference": "string (reference or expected range)"
+    }
+  ],
+  "handwrittenDigitAnalysis": [
+    {
+      "digit": "string (digit or number extracted from handwriting)",
+      "context": "string (where it appears, such as dosage/date/frequency)",
+      "confidence": "string (low, medium, or high)"
+    }
+  ],
+  "medicationPlan": [
+    {
+      "name": "string (medicine or therapy name)",
+      "dose": "string (dose instructions)",
+      "frequency": "string (how often)",
+      "duration": "string (how long)",
+      "caution": "string (safety note)"
+    }
+  ],
+  "personalizedPrediction": "string (personalized prediction based on the report image or prescription)",
+  "riskPrediction": "string (2-4 sentences explaining health risks and findings)",
+  "recoveryEstimate": "string (estimated recovery or maintenance timeline)",
+  "naturalTreatments": ["string", "string", "string"],
+  "medicalTreatments": ["string", "string"],
+  "patientPrecautions": [
+    {
+      "text": "string (personalized precaution based on the report)",
+      "category": "string (General, Dietary, Monitoring, Safety, or Lifestyle)"
+    }
+  ],
+  "exerciseReminders": [
+    {
+      "title": "string (exercise name)",
+      "time": "string (e.g. '07:00 AM')",
+      "reason": "string (brief reason)"
+    }
+  ]
+}
+If any field is not visible in the report, use a sensible default. Always return valid parseable JSON.`;
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -47,6 +186,7 @@ const Dashboard = () => {
   // Modals / Popup controls
   const [isInputModalOpen, setIsInputModalOpen] = useState(false);
   const [inputOption, setInputOption] = useState('select'); // 'select' | 'upload' | 'manual'
+  const [analysisMode, setAnalysisMode] = useState('laboratory');
 
 
   // Manual Health Entry inputs
@@ -93,6 +233,7 @@ const Dashboard = () => {
     setErrorMsg('');
     setSuccessMsg('');
     setInputOption('select');
+    setAnalysisMode('laboratory');
     setIsInputModalOpen(true);
   };
 
@@ -283,48 +424,8 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
     setUploading(true);
 
     try {
-      const PROMPT = `You are an expert medical AI. Analyze this health report and extract all relevant data.
-First, check if the provided document is a genuine medical diagnostic laboratory report or medical record. If the document is NOT a medical report (e.g. it is an arbitrary image, a document containing non-medical text, a recipe, a chat log, or obviously fabricated nonsense), set "isGenuineReport" to false and set "fakeReportWarning" to a warning explaining why the report was rejected. Otherwise, set "isGenuineReport" to true and "fakeReportWarning" to "".
-
-Return ONLY valid JSON (no markdown, no backticks, no extra text) matching this EXACT structure:
-{
-  "isGenuineReport": boolean,
-  "fakeReportWarning": "string (warning message if fake, otherwise empty string)",
-  "patientName": "string (patient full name or 'Unknown Patient')",
-  "age": "string (age as number or 'N/A')",
-  "gender": "string (Male/Female/Other or 'N/A')",
-  "address": "string (patient address or 'N/A')",
-  "referredDoctor": "string (doctor name or 'N/A')",
-  "healthScore": number (0-100, estimate based on values),
-  "reportDate": "string (date of report or today's date)",
-  "medicalValues": [
-    {
-      "name": "string (test name)",
-      "value": "string (measured value)",
-      "unit": "string (unit of measurement)",
-      "normal": "string (normal range)",
-      "status": "string (Normal, High, Low, Slightly High, or Slightly Low)"
-    }
-  ],
-  "riskPrediction": "string (2-4 sentences explaining health risks and findings)",
-  "recoveryEstimate": "string (estimated recovery or maintenance timeline)",
-  "naturalTreatments": ["string", "string", "string"],
-  "medicalTreatments": ["string", "string"],
-  "patientPrecautions": [
-    {
-      "text": "string (personalized precaution based on the report)",
-      "category": "string (General, Dietary, Monitoring, Safety, or Lifestyle)"
-    }
-  ],
-  "exerciseReminders": [
-    {
-      "title": "string (exercise name)",
-      "time": "string (e.g. '07:00 AM')",
-      "reason": "string (brief reason)"
-    }
-  ]
-}
-If any field is not in the report, use a sensible default. Always return valid parseable JSON.`;
+      const profile = ANALYSIS_PROFILES[analysisMode] || ANALYSIS_PROFILES.laboratory;
+      const PROMPT = buildAnalysisPrompt({ profile, patientName: currentUser?.name || 'Patient' });
 
       const fileToBase64 = (file) => new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -361,7 +462,14 @@ If any field is not in the report, use a sensible default. Always return valid p
 
             if (startIdx === -1 || endIdx === 0) throw new Error("AI did not return valid JSON structure.");
 
-            return JSON.parse(responseText.substring(startIdx, endIdx));
+            const parsedReport = JSON.parse(responseText.substring(startIdx, endIdx));
+            return {
+              ...parsedReport,
+              analysisMode: parsedReport.analysisMode || profile.id,
+              analysisCategory: parsedReport.analysisCategory || profile.label,
+              layoutType: parsedReport.layoutType || profile.layoutHint,
+              reportSource: 'uploaded-file'
+            };
           } catch (e) {
             lastError = e;
             console.warn(`${mName} failed:`, e.message);
@@ -786,6 +894,22 @@ Always return valid parseable JSON.`;
                         </span>
                       </div>
 
+                          <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                            <span className="badge" style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', background: 'rgba(0,210,255,0.08)', color: 'var(--primary)' }}>
+                              {report.analysisCategory || 'General Analysis'}
+                            </span>
+                            {report.handwrittenDetected && (
+                              <span className="badge" style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', background: 'rgba(243,156,18,0.1)', color: 'var(--warning)' }}>
+                                Handwritten
+                              </span>
+                            )}
+                            {report.documentType && (
+                              <span className="badge" style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>
+                                {report.documentType}
+                              </span>
+                            )}
+                          </div>
+
                       <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                         {report.riskPrediction ? report.riskPrediction.substring(0, 96) : 'No AI summary available.'}{report.riskPrediction && report.riskPrediction.length > 96 ? '...' : ''}
                       </p>
@@ -873,11 +997,62 @@ Always return valid parseable JSON.`;
                   
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div>
+                      <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Analysis Mode</h4>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                        {reportData.analysisCategory || 'General AI analysis'}
+                      </p>
+                      {reportData.analysisSummary && (
+                        <p style={{ margin: '0.6rem 0 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                          {reportData.analysisSummary}
+                        </p>
+                      )}
+                    </div>
+                    <div>
                       <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Overview Analysis</h4>
                       <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                         {reportData.riskPrediction}
                       </p>
                     </div>
+                    {reportData.handwrittenDigitAnalysis?.length > 0 && (
+                      <div style={{ padding: '1rem', background: 'rgba(243,156,18,0.05)', borderLeft: '3px solid var(--warning)', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0' }}>
+                        <h4 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem 0', color: 'var(--warning)' }}>Handwritten Digit Analysis</h4>
+                        <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                          {reportData.handwrittenDigitAnalysis.slice(0, 5).map((item, idx) => (
+                            <li key={idx}>{item.digit} - {item.context} ({item.confidence})</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {reportData.radiologyFindings?.length > 0 && (
+                      <div style={{ padding: '1rem', background: 'rgba(0,210,255,0.05)', borderLeft: '3px solid var(--primary)', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0' }}>
+                        <h4 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem 0', color: 'var(--primary)' }}>Radiology Findings</h4>
+                        <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                          {reportData.radiologyFindings.slice(0, 4).map((item, idx) => (
+                            <li key={idx}><strong>{item.title}:</strong> {item.detail} {item.severity ? `(${item.severity})` : ''}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {reportData.measurementSummary?.length > 0 && (
+                      <div style={{ padding: '1rem', background: 'rgba(46,204,113,0.05)', borderLeft: '3px solid var(--success)', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0' }}>
+                        <h4 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem 0', color: 'var(--success)' }}>Measurements</h4>
+                        <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                          {reportData.measurementSummary.slice(0, 4).map((item, idx) => (
+                            <li key={idx}><strong>{item.title}:</strong> {item.value} {item.reference ? `(${item.reference})` : ''}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {reportData.medicationPlan?.length > 0 && (
+                      <div style={{ padding: '1rem', background: 'rgba(155,89,182,0.05)', borderLeft: '3px solid #9b59b6', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0' }}>
+                        <h4 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem 0', color: '#9b59b6' }}>Medication Plan</h4>
+                        <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                          {reportData.medicationPlan.slice(0, 4).map((item, idx) => (
+                            <li key={idx}><strong>{item.name}:</strong> {item.dose} {item.frequency ? `• ${item.frequency}` : ''} {item.duration ? `• ${item.duration}` : ''}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <div style={{ padding: '1rem', background: 'rgba(231, 76, 60, 0.05)', borderLeft: '3px solid var(--danger)', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0' }}>
                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}><strong>Recovery Estimate:</strong> {reportData.recoveryEstimate}</p>
                     </div>
@@ -1144,6 +1319,34 @@ Always return valid parseable JSON.`;
                 <h3 style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>Extract from Report</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Drop or browse your PDF / Image report below. The system checks report authenticity.</p>
 
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: '700' }}>Select analysis type</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '0.65rem' }}>
+                    {Object.values(ANALYSIS_PROFILES).map((profile) => {
+                      const active = analysisMode === profile.id;
+                      return (
+                        <button
+                          key={profile.id}
+                          type="button"
+                          onClick={() => setAnalysisMode(profile.id)}
+                          style={{
+                            padding: '0.8rem 0.9rem',
+                            borderRadius: 'var(--radius-sm)',
+                            border: active ? '1px solid rgba(0, 210, 255, 0.45)' : '1px solid var(--surface-border)',
+                            background: active ? 'rgba(0, 210, 255, 0.08)' : 'rgba(255,255,255,0.02)',
+                            color: 'var(--text-primary)',
+                            textAlign: 'left',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{ fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.25rem', color: active ? 'var(--primary)' : 'var(--text-primary)' }}>{profile.label}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{profile.description}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {errorMsg && (
                   <div style={{ padding: '0.75rem', background: 'rgba(231, 76, 60, 0.1)', borderLeft: '3px solid var(--danger)', color: 'var(--danger)', fontSize: '0.85rem', borderRadius: '4px', marginBottom: '1rem', fontWeight: '500' }}>
                     {errorMsg}
@@ -1376,7 +1579,7 @@ Always return valid parseable JSON.`;
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <tbody>
                   <tr>
-                    <td style={{ padding: '4px 0', width: '25%', color: '#555' }}>Full Name</td>
+                    <td style={{ padding: '4px 0', width: '25%', color: '#555' }}>Patient Name</td>
                     <td style={{ padding: '4px 12px', fontWeight: '700', color: '#111', width: '25%' }}>{reportData.patientName}</td>
                     <td style={{ padding: '4px 0', width: '25%', color: '#555' }}>Age / Gender</td>
                     <td style={{ padding: '4px 0', fontWeight: '700', color: '#111' }}>{reportData.age} Yrs &nbsp;|&nbsp; {reportData.gender}</td>
@@ -1386,7 +1589,7 @@ Always return valid parseable JSON.`;
                     <td style={{ padding: '4px 12px', fontWeight: '600', color: '#111' }}>{reportData.referredDoctor || 'N/A'}</td>
                     <td style={{ padding: '4px 0', color: '#555' }}>Health Score</td>
                     <td style={{ padding: '4px 0' }}>
-                      <span style={{ background: reportData.healthScore >= 75 ? '#e8f5e9' : reportData.healthScore >= 50 ? '#fff8e1' : '#ffebee', color: reportData.healthScore >= 75 ? '#2e7d32' : reportData.healthScore >= 50 ? '#f57f17' : '#c62828', fontWeight: '800', padding: '2px 10px', borderRadius: '20px', fontSize: '12px' }}>
+                      <span style={{ fontWeight: '700', color: '#0d47a1' }}>
                         {reportData.healthScore} / 100
                       </span>
                     </td>
