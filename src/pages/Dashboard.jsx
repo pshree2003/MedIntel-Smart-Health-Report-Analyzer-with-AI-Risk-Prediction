@@ -288,7 +288,10 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
       setChatMessages(prev => [...prev, { role: 'assistant', text: responseText }]);
     } catch (error) {
       console.error(error);
-      setChatMessages(prev => [...prev, { role: 'assistant', text: `Sorry! The AI server is overloaded right now. Please wait 30 seconds and try again.` }]);
+      const message = error.message?.includes('Failed to fetch')
+        ? 'I cannot reach the AI service right now. Please start the AI server and try again.'
+        : `Sorry, I could not process that message. ${error.message || 'Please try again.'}`;
+      setChatMessages(prev => [...prev, { role: 'assistant', text: message }]);
     } finally {
       setIsChatLoading(false);
     }
@@ -1136,9 +1139,9 @@ Always return valid parseable JSON.`;
       </main>
 
       {/* Floating Chat Bot Widget */}
-      <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 50 }}>
+      <div className="chat-widget" style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 50 }}>
         {chatOpen && (
-          <div className="glass-panel animate-fade-in" style={{ width: '380px', height: '500px', marginBottom: '1rem', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-depth), 0 0 30px rgba(0, 210, 255, 0.1)' }}>
+          <div className="glass-panel chat-panel animate-fade-in" style={{ width: '380px', height: '500px', marginBottom: '1rem', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-depth), 0 0 30px rgba(0, 210, 255, 0.1)' }}>
             <div style={{ background: 'rgba(0, 210, 255, 0.1)', padding: '1.25rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ background: 'var(--primary)', padding: '0.5rem', borderRadius: '50%' }}><Cpu size={20} color="#fff" /></div>
               <div>

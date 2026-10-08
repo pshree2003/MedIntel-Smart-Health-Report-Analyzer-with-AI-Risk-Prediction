@@ -1,4 +1,5 @@
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002').replace(/\/$/, '');
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const apiBaseUrl = (configuredApiBaseUrl || (import.meta.env.DEV ? '' : 'http://localhost:3002')).replace(/\/$/, '');
 
 export const requestGemini = async (path, payload) => {
   const response = await fetch(`${apiBaseUrl}${path}`, {

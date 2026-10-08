@@ -451,6 +451,16 @@ strong {
     padding: 0.5rem 0.75rem !important;
     font-size: 0.85rem !important;
   }
+
+  .chat-widget {
+    right: 1rem !important;
+    bottom: 1rem !important;
+  }
+
+  .chat-panel {
+    width: min(380px, calc(100vw - 2rem)) !important;
+    height: min(500px, calc(100vh - 7rem)) !important;
+  }
 }
 
 /* Auth page */
