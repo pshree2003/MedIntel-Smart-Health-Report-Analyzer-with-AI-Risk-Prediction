@@ -143,7 +143,7 @@ The frontend sends chat, report, manual-analysis, and specialist-discovery reque
 
 ### Deployment
 
-GitHub Pages can host the static frontend, but it cannot run the Gemini backend. Deploy `gemini-server.js` to a Node-capable host such as Render, Railway, Fly.io, or a VPS, and configure:
+GitHub Pages and Surge can host the static frontend, but they cannot run the Gemini backend. Deploy `gemini-server.js` to a Node-capable host such as Render, Railway, Fly.io, or a VPS. A Render blueprint is included in `render.yaml`; after creating the service, set its `GEMINI_API_KEY` secret and copy the service URL into the GitHub repository variable `VITE_API_BASE_URL`:
 
 ```env
 GEMINI_API_KEY=your-server-only-gemini-key
@@ -151,7 +151,7 @@ FRONTEND_ORIGIN=https://your-github-pages-site.example
 PORT=3002
 ```
 
-Use `npm install` during the backend build and `npm run ai-server` as the start command. Set the host's public URL as the GitHub repository variable `VITE_API_BASE_URL`, then push to `main` so the workflow builds the frontend against that backend. Do not create a `VITE_GEMINI_API_KEY` secret or variable. On a new browser or phone, users should open the deployed frontend normally; no Gemini key is required.
+Use `npm install` during the backend build and `npm run ai-server` as the start command. After setting `VITE_API_BASE_URL`, push to `main` so the workflow rebuilds the frontend against that public backend. Do not create a `VITE_GEMINI_API_KEY` secret or variable. On a new browser or phone, users should open the deployed frontend normally; no Gemini key is required.
 
 ---
 

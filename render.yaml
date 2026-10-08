@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: medintel-ai-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run ai-server
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        value: https://medintel-ai-shrikantp.surge.sh
+      - key: PORT
+        value: 10000
