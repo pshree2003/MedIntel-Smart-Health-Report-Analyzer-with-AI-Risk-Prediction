@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, User, MapPin, Star, Calendar, Phone, HeartPulse, Activity as ActivityIcon, LayoutDashboard, TrendingUp, X, BadgeCheck, Video, Wifi, Clock, Award, Building2, Stethoscope, FileText, LocateFixed } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import html2pdf from 'html2pdf.js';
+import { requestGemini } from '../utils/geminiApi';
 
 const BookConsultant = () => {
   const navigate = useNavigate();
@@ -613,12 +614,6 @@ const BookConsultant = () => {
 
   const handleSearchDoctors = async (searchCity = city) => {
     if (!searchCity) return;
-    
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
-    if (!apiKey) {
-      alert("Please ensure your Gemini API Key is set in the landing page first.");
-      return;
-    }
 
     setIsSearchingDoctors(true);
     setDoctors([]);
@@ -642,33 +637,18 @@ Return ONLY valid JSON (no markdown, no backticks, no extra text) as an array ma
       let fetchedDoctors = null;
 
       // Try AI first
-      const modelNames = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
-      for (const mName of modelNames) {
-        try {
-          console.log(`Attempting discovery via ${mName}...`);
-          const client = new GoogleGenerativeAI(apiKey);
-          const model = client.getGenerativeModel({ model: mName });
-          const response = await model.generateContent(HOSPITAL_PROMPT);
-          
-          if (!response?.response) continue;
-          let text = response.response.text().trim();
+      try {
+        let text = await requestGemini('/api/ai/discover-doctors', { prompt: HOSPITAL_PROMPT });
+        text = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
 
-          // Strip markdown code fences if present
-          text = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-
-          const startIdx = text.indexOf('[');
-          const endIdx = text.lastIndexOf(']') + 1;
-          if (startIdx === -1 || endIdx === 0) continue;
-
+        const startIdx = text.indexOf('[');
+        const endIdx = text.lastIndexOf(']') + 1;
+        if (startIdx !== -1 && endIdx > 0) {
           const parsed = JSON.parse(text.substring(startIdx, endIdx));
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            fetchedDoctors = parsed;
-            console.log(`✅ Discovery successful via ${mName}`);
-            break;
-          }
-        } catch (e) {
-          console.warn(`${mName} discovery failed:`, e.message);
+          if (Array.isArray(parsed) && parsed.length > 0) fetchedDoctors = parsed;
         }
+      } catch (e) {
+        console.warn(`AI discovery failed: ${e.message}`);
       }
 
       // Fallback: OpenStreetMap if AI fails
@@ -709,7 +689,7 @@ Return ONLY valid JSON (no markdown, no backticks, no extra text) as an array ma
       if (matchingVerified.length > 0) {
         setDoctors(matchingVerified);
       } else {
-        alert(`Search failed: ${err.message || "Please check your city name or API key."}`);
+        alert(`Search failed: ${err.message || "Please check your city name and try again."}`);
       }
     } finally {
       setIsSearchingDoctors(false);

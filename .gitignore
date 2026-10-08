@@ -18,6 +18,9 @@ dist-ssr
 .env.test.local
 .env.production.local
 
+# Never commit server secrets or generated credential data
+patient_credentials.csv
+
 # Gemini / Antigravity Metadata
 .gemini/
 .sixth/

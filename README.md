@@ -99,7 +99,7 @@ A dual-layer routing system matches identified health risks with appropriate med
 | Component | Technology | Purpose |
 | :--- | :--- | :--- |
 | **Framework** | React 19 / Vite 8 | Core SPA infrastructure and fast HMR. |
-| **Intelligence** | Google Gemini 1.5 | SOTA Multimodal extraction and reasoning. |
+| **Intelligence** | Google Gemini | Server-side multimodal extraction and reasoning. |
 | **Geospatial** | OSN / Nominatim | Privacy-focused hospital location discovery. |
 | **State** | React Context API | Global theme and health data orchestration. |
 | **UI/UX** | CSS Glassmorphism | Premium, medical-grade visual interface. |
@@ -111,7 +111,7 @@ A dual-layer routing system matches identified health risks with appropriate med
 
 ### Prerequisites
 *   **Node.js**: v18.0.0+
-*   **API Key**: A valid [Google AI Studio](https://aistudio.google.com/) Gemini API Key.
+*   **Backend**: Node.js v18.0.0+ with a valid [Google AI Studio](https://aistudio.google.com/) Gemini API Key.
 
 ### Setup Guide
 1.  **Clone the Ecosystem**:
@@ -120,25 +120,45 @@ A dual-layer routing system matches identified health risks with appropriate med
     cd Smart-Health-Report-Analyzer-with-AI-Risk-Prediction
     ```
 2.  **Initialize Environment**:
-    Create a `.env` file in the root:
+    Copy `.env.example` to `.env` and set the key on the backend only:
     ```env
-    VITE_GEMINI_API_KEY=YOUR_SECURE_API_KEY
+    GEMINI_API_KEY=YOUR_SERVER_ONLY_API_KEY
+    FRONTEND_ORIGIN=http://localhost:5173
+    PORT=3002
     ```
 3.  **Install Dependencies**:
     ```bash
     npm install
     ```
-4.  **Launch Local Instance**:
+4.  **Launch the AI backend** in one terminal:
+    ```bash
+    npm run ai-server
+    ```
+5.  **Launch the frontend** in another terminal:
     ```bash
     npm run dev
     ```
+
+The frontend sends chat, report, manual-analysis, and specialist-discovery requests to the AI backend. The backend calls Gemini with `GEMINI_API_KEY`; the key is never sent in a response or included in the Vite bundle. The existing credentials service remains available separately with `npm run credentials-server` on port `3001`.
+
+### Deployment
+
+GitHub Pages can host the static frontend, but it cannot run the Gemini backend. Deploy `gemini-server.js` to a Node-capable host such as Render, Railway, Fly.io, or a VPS, and configure:
+
+```env
+GEMINI_API_KEY=your-server-only-gemini-key
+FRONTEND_ORIGIN=https://your-github-pages-site.example
+PORT=3002
+```
+
+Use `npm install` during the backend build and `npm run ai-server` as the start command. Set the host's public URL as the GitHub repository variable `VITE_API_BASE_URL`, then push to `main` so the workflow builds the frontend against that backend. Do not create a `VITE_GEMINI_API_KEY` secret or variable. On a new browser or phone, users should open the deployed frontend normally; no Gemini key is required.
 
 ---
 
 ## 🔐 Privacy & Ethical AI
 **MedIntel AI** operates on the principle of **Ephemeral Health Data**. 
-*   **Local Processing**: File-to-Base64 conversion happens entirely in the browser.
-*   **Non-Persistence**: Health data is processed in-memory for the duration of the session and is **not persisted** on any external database.
+*   **Server-side key protection**: Gemini calls are proxied through the backend and the Gemini key is stored only in `GEMINI_API_KEY` on that host.
+*   **Request handling**: Uploaded files are converted to Base64 in the browser and sent to the backend only to complete the requested Gemini analysis; deploy the backend with appropriate health-data privacy controls.
 *   **Medical Disclaimer**: AI-generated predictions are for informational purposes only and must be verified by a licensed medical professional.
 
 ---

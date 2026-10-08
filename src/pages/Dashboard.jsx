@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import html2pdf from 'html2pdf.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useTheme } from '../context/ThemeContext';
+import { requestGemini } from '../utils/geminiApi';
 
 const ANALYSIS_PROFILES = {
   laboratory: {
@@ -257,16 +257,6 @@ const Dashboard = () => {
     setIsChatLoading(true);
 
     try {
-      const apiKey = localStorage.getItem('gemini_api_key');
-      if (!apiKey) {
-        setChatMessages(prev => [...prev, { role: 'assistant', text: 'Error: Gemini API Key not found. Please log in and enter your key.' }]);
-        setIsChatLoading(false);
-        return;
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const modelNames = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash", "gemini-1.5-pro"];
-
       const context = `
 You are MedIntel AI, a strictly bounded professional virtual medical data assistant.
 Your ONLY purpose is to answer questions specifically regarding the uploaded medical report detailed below.
@@ -293,24 +283,7 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
       ).join('\n\n');
       const prompt = `${context}\n\n--- PREVIOUS CONVERSATION ---\n${historyString}\n\nPatient: ${userMsg}\nMedIntel AI:`;
 
-      let responseText = "";
-      let lastError = null;
-
-      for (const mName of modelNames) {
-        try {
-          const model = genAI.getGenerativeModel({ model: mName });
-          const result = await model.generateContent(prompt);
-          responseText = result.response.text();
-          break; // If successful, exit loop
-        } catch (e) {
-          lastError = e;
-          console.warn(`Model ${mName} failed:`, e.message);
-        }
-      }
-
-      if (!responseText) {
-        throw new Error(`All fallback AI models failed. Last error: ${lastError?.message || 'Unknown'}`);
-      }
+      const responseText = await requestGemini('/api/ai/chat', { prompt });
 
       setChatMessages(prev => [...prev, { role: 'assistant', text: responseText }]);
     } catch (error) {
@@ -415,11 +388,6 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
   const processFiles = async (files) => {
     setErrorMsg('');
     setSuccessMsg('');
-    const apiKey = localStorage.getItem('gemini_api_key');
-    if (!apiKey) {
-      setErrorMsg("Please enter your Google Gemini API Key first.");
-      return;
-    }
 
     setUploading(true);
 
@@ -439,43 +407,24 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
         const base64Only = base64Data.split(',')[1];
         const mimeType = file.type || 'application/pdf';
 
-        const modelNames = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
-        let lastError = null;
+        let responseText = await requestGemini('/api/ai/analyze-report', {
+          prompt: PROMPT,
+          file: { data: base64Only, mimeType }
+        });
+        responseText = responseText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+        const startIdx = responseText.indexOf('{');
+        const endIdx = responseText.lastIndexOf('}') + 1;
 
-        for (const mName of modelNames) {
-          try {
-            console.log(`Attempting analysis via ${mName}...`);
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: mName });
+        if (startIdx === -1 || endIdx === 0) throw new Error("AI did not return valid JSON structure.");
 
-            const result = await model.generateContent([
-              PROMPT,
-              { inlineData: { data: base64Only, mimeType } }
-            ]);
-
-            if (!result?.response) throw new Error("No response from model");
-            let responseText = result.response.text().trim();
-
-            responseText = responseText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-            const startIdx = responseText.indexOf('{');
-            const endIdx = responseText.lastIndexOf('}') + 1;
-
-            if (startIdx === -1 || endIdx === 0) throw new Error("AI did not return valid JSON structure.");
-
-            const parsedReport = JSON.parse(responseText.substring(startIdx, endIdx));
-            return {
-              ...parsedReport,
-              analysisMode: parsedReport.analysisMode || profile.id,
-              analysisCategory: parsedReport.analysisCategory || profile.label,
-              layoutType: parsedReport.layoutType || profile.layoutHint,
-              reportSource: 'uploaded-file'
-            };
-          } catch (e) {
-            lastError = e;
-            console.warn(`${mName} failed:`, e.message);
-          }
-        }
-        throw new Error(`All models failed: ${lastError?.message || 'Unknown error'}`);
+        const parsedReport = JSON.parse(responseText.substring(startIdx, endIdx));
+        return {
+          ...parsedReport,
+          analysisMode: parsedReport.analysisMode || profile.id,
+          analysisCategory: parsedReport.analysisCategory || profile.label,
+          layoutType: parsedReport.layoutType || profile.layoutHint,
+          reportSource: 'uploaded-file'
+        };
       };
 
       const finalReports = await Promise.all(files.map(analyzeFile));
@@ -514,12 +463,6 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
     }
 
     setUploading(true);
-    const apiKey = localStorage.getItem('gemini_api_key');
-    if (!apiKey) {
-      setErrorMsg("Please enter your Google Gemini API Key first.");
-      setUploading(false);
-      return;
-    }
 
     try {
       const PROMPT = `You are an expert medical AI. The patient has entered their health details manually.
@@ -590,28 +533,8 @@ Return ONLY valid JSON (no markdown, no backticks, no extra text) matching this 
 }
 Always return valid parseable JSON.`;
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const modelNames = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
-      let lastError = null;
-      let responseText = "";
-
-      for (const mName of modelNames) {
-        try {
-          console.log(`Analyzing manual metrics via ${mName}...`);
-          const model = genAI.getGenerativeModel({ model: mName });
-          const result = await model.generateContent(PROMPT);
-          if (!result?.response) throw new Error("No response from model");
-          responseText = result.response.text().trim();
-          break;
-        } catch (e) {
-          lastError = e;
-          console.warn(`Model ${mName} failed:`, e.message);
-        }
-      }
-
-      if (!responseText) {
-        throw new Error(`All models failed: ${lastError?.message || 'Unknown'}`);
-      }
+      let responseText = await requestGemini('/api/ai/analyze-manual', { prompt: PROMPT });
+      responseText = responseText.trim();
 
       responseText = responseText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
       const startIdx = responseText.indexOf('{');
