@@ -715,8 +715,7 @@ Always return valid parseable JSON.`;
         </div>
 
         {/* Right Actions */}
-        <div className="nav-actions" style={{ flexWrap: 'wrap' }}>
-          <LanguageSelector />
+        <div className="nav-actions dashboard-nav-actions">
           {reportData && (
             <button className="nav-btn" onClick={openAnalyzePopup} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
               <UploadCloud size={18} /> {t('analyzeAnotherReport')}
@@ -725,22 +724,23 @@ Always return valid parseable JSON.`;
           <button className="nav-btn" onClick={() => navigate('/consultant', { state: { reports: allReports, selectedIndex: selectedReportIndex } })} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
             <User size={18} /> {t('specialists')}
           </button>
+          <LanguageSelector />
           <div style={{ width: '1px', height: '24px', background: 'var(--surface-border)' }}></div>
           <button onClick={toggleTheme} className="dashboard-theme-button" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
           </button>
           {currentUser && (
-            <div className="dashboard-profile-pill">
-              <div className="dashboard-avatar">{patientInitial}</div>
-              <div className="dashboard-profile-copy">
-                <strong>{currentUser.name || 'Patient'}</strong>
-                <span>{currentUser.email}</span>
+            <div className="dashboard-user-menu">
+              <div className="dashboard-profile-pill" tabIndex="0" aria-label={`${currentUser.name || 'Patient'} profile`}>
+                <div className="dashboard-avatar">{patientInitial}</div>
+                <div className="dashboard-profile-copy">
+                  <strong>{currentUser.name || 'Patient'}</strong>
+                  <span>{currentUser.email}</span>
+                </div>
               </div>
+              <button className="dashboard-logout-menu" onClick={handleLogout}>{t('logout')}</button>
             </div>
           )}
-          <button className="nav-btn" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: 'var(--radius-full)', background: 'rgba(231, 76, 60, 0.1)', color: 'var(--danger)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '600' }}>
-            {t('logout')}
-          </button>
         </div>
       </nav>
 

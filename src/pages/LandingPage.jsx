@@ -480,7 +480,7 @@ const LandingPage = () => {
       {/* ── LEFT PANE ── */}
       <div className="landing-left">
         {/* Top bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3.5rem' }}>
+        <div className="landing-top-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem' }}>
             <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, var(--primary) 0%, rgba(0,210,255,0.5) 100%)', borderRadius: '14px', transform: 'rotate(10deg)', opacity: 0.2 }} />
@@ -495,7 +495,7 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="landing-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <LanguageSelector />
             {currentUser && (
               <>
