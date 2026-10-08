@@ -10,6 +10,7 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const modelNames = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash-lite'];
 const maxBodySize = 15 * 1024 * 1024;
+const hasUsableGeminiKey = geminiApiKey && !geminiApiKey.startsWith('replace-') && !geminiApiKey.startsWith('your-');
 
 const getCorsOrigin = (requestOrigin) => {
   if (!requestOrigin) return allowedOrigins[0] || '*';
@@ -54,7 +55,7 @@ const readJsonBody = (req) => new Promise((resolve, reject) => {
 });
 
 const generateContent = async (contents, responseMimeType) => {
-  if (!geminiApiKey) {
+  if (!hasUsableGeminiKey) {
     throw new Error('The Gemini backend is not configured. Set GEMINI_API_KEY.');
   }
 
@@ -142,12 +143,16 @@ const server = createServer(async (req, res) => {
     sendJson(res, 200, { ok: true, text }, requestOrigin);
   } catch (error) {
     console.error('Gemini API error:', error.message);
-    const statusCode = error.message.includes('payload') || error.message.includes('prompt') || error.message.includes('file')
-      ? 400
-      : 502;
+    const isBadRequest = error.message.includes('payload') || error.message.includes('prompt') || error.message.includes('file');
+    const isConfigurationError = !hasUsableGeminiKey || /api key|backend is not configured|authentication|permission/i.test(error.message);
+    const statusCode = isBadRequest ? 400 : isConfigurationError ? 503 : 502;
     sendJson(res, statusCode, {
       ok: false,
-      message: statusCode === 400 ? error.message : 'The AI service is temporarily unavailable. Please try again.'
+      message: isBadRequest
+        ? error.message
+        : isConfigurationError
+          ? 'The AI backend is not configured correctly. Set a valid GEMINI_API_KEY on the server.'
+          : 'The AI service is temporarily unavailable. Please try again.'
     }, requestOrigin);
   }
 });
