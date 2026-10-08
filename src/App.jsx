@@ -8,6 +8,7 @@ import AdminLogin from './pages/AdminLogin';
 import DoctorLogin from './pages/DoctorLogin';
 import DoctorDashboard from './pages/DoctorDashboard';
 import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import './App.css';
 
 // Simple Route Guard for Patient Pages — admin and doctor are blocked
@@ -107,9 +108,10 @@ function App() {
 
   return (
     <ThemeProvider>
-      <Router basename={import.meta.env.BASE_URL}>
-        <div className="app-container">
-          <Routes>
+      <LanguageProvider>
+        <Router basename={import.meta.env.BASE_URL}>
+          <div className="app-container">
+            <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Navigate to="/" replace />} />
             <Route path="/admin-login" element={<AdminLogin />} />
@@ -148,9 +150,10 @@ function App() {
             />
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
-      </Router>
+            </Routes>
+          </div>
+        </Router>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

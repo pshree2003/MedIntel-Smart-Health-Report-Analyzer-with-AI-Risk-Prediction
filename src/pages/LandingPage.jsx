@@ -6,6 +6,8 @@ import {
   AlertTriangle, User, Phone, BookOpen, Briefcase, X, ShieldAlert
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 
 /* ─── helpers ─── */
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -447,6 +449,7 @@ const SpecialistModal = ({ onClose }) => {
 const LandingPage = () => {
   const navigate  = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
 
   const currentUserStr = localStorage.getItem('medintel_current_user');
   const currentUser    = currentUserStr ? JSON.parse(currentUserStr) : null;
@@ -493,13 +496,14 @@ const LandingPage = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <LanguageSelector />
             {currentUser && (
               <>
                 <button onClick={() => navigate('/dashboard')} style={{ background: 'transparent', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', padding: '0.5rem 1.25rem', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>
-                  Dashboard
+                  {t('dashboard')}
                 </button>
                 <button onClick={handleLogout} style={{ background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.2)', color: 'var(--danger)', padding: '0.5rem 1.25rem', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>
-                  Logout
+                  {t('logout')}
                 </button>
               </>
             )}
@@ -517,7 +521,7 @@ const LandingPage = () => {
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,152,219,0.14)'; e.currentTarget.style.borderColor = '#3498db'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,152,219,0.06)'; e.currentTarget.style.borderColor = 'rgba(52,152,219,0.18)'; }}
             >
-              <Stethoscope size={14} /> Doctor Portal
+              <Stethoscope size={14} /> {t('doctorPortal')}
             </button>
             <button
               onClick={() => navigate('/admin-login')}
@@ -532,7 +536,7 @@ const LandingPage = () => {
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(231,76,60,0.14)'; e.currentTarget.style.borderColor = '#e74c3c'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(231,76,60,0.06)'; e.currentTarget.style.borderColor = 'rgba(231,76,60,0.18)'; }}
             >
-              <ShieldAlert size={14} /> Admin
+              <ShieldAlert size={14} /> {t('adminPortal')}
             </button>
             <button onClick={toggleTheme} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
@@ -610,10 +614,10 @@ const LandingPage = () => {
               <p style={{ color: 'var(--primary)', fontWeight: '700', fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>{currentUser.name}</p>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '2rem' }}>{currentUser.email}</p>
               <button className="btn-primary" style={{ width: '100%', padding: '0.85rem', marginBottom: '0.75rem' }} onClick={() => navigate('/dashboard')}>
-                Go to Dashboard
+                {t('goToDashboard')}
               </button>
               <button onClick={handleLogout} style={{ width: '100%', padding: '0.75rem', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)', color: 'var(--danger)', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontWeight: '600' }}>
-                Logout
+                {t('logout')}
               </button>
             </div>
           ) : (

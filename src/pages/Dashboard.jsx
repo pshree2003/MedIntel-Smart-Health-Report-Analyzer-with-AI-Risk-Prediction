@@ -8,6 +8,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import html2pdf from 'html2pdf.js';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 import { requestGemini } from '../utils/geminiApi';
 
 const ANALYSIS_PROFILES = {
@@ -152,6 +154,7 @@ If any field is not visible in the report, use a sensible default. Always return
 const Dashboard = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { chatLanguage, supportedLanguages, t, tChat } = useLanguage();
   
   // Load current user and their reports
   const [currentUser, setCurrentUser] = useState(() => {
@@ -240,9 +243,17 @@ const Dashboard = () => {
   // Generate ID once to satisfy purity rules
   const [patientId] = useState(() => `MED-${Math.floor(Math.random() * 10000)}X`);
 
+  const chatWelcome = tChat('chatWelcome');
   const [chatMessages, setChatMessages] = useState([
-    { role: 'assistant', text: `Hello! I am MedIntel AI. I've analyzed your report. What would you like to know about your results?` }
+    { role: 'assistant', text: chatWelcome }
   ]);
+
+  useEffect(() => {
+    setChatMessages((previousMessages) => {
+      if (previousMessages.length !== 1 || previousMessages[0].role !== 'assistant') return previousMessages;
+      return [{ role: 'assistant', text: chatWelcome }];
+    });
+  }, [chatLanguage, chatWelcome]);
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || isChatLoading) return;
@@ -257,8 +268,10 @@ const Dashboard = () => {
     setIsChatLoading(true);
 
     try {
+      const selectedLanguage = supportedLanguages.find((item) => item.code === chatLanguage)?.label || 'English';
       const context = `
 You are MedIntel AI, a strictly bounded professional virtual medical data assistant.
+    LANGUAGE REQUIREMENT: The patient selected ${selectedLanguage}. Respond entirely in ${selectedLanguage}, using natural and easy-to-understand wording. Do not switch to English unless the patient asks for English.
 Your ONLY purpose is to answer questions specifically regarding the uploaded medical report detailed below.
 IMPORTANT GUARDRAILS:
 1. You MUST REFUSE to answer any questions unrelated to this report (e.g., general conversation, asking for code, programming, unrelated health issues).
@@ -689,27 +702,28 @@ Always return valid parseable JSON.`;
 
         <div className="nav-links">
           <button className={`nav-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); window.scrollTo({top: 0, behavior: 'smooth'}); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: 'var(--radius-full)', background: activeTab === 'overview' ? 'rgba(0, 210, 255, 0.1)' : 'transparent', color: activeTab === 'overview' ? 'var(--primary)' : 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: activeTab === 'overview' ? '600' : '500' }}>
-            <LayoutDashboard size={18} /> Overview
+            <LayoutDashboard size={18} /> {t('overview')}
           </button>
           <button className={`nav-btn ${activeTab === 'tracker' ? 'active' : ''}`} onClick={() => { setActiveTab('tracker'); document.getElementById('health-tracker')?.scrollIntoView({ behavior: 'smooth' }); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: 'var(--radius-full)', background: activeTab === 'tracker' ? 'rgba(0, 210, 255, 0.1)' : 'transparent', color: activeTab === 'tracker' ? 'var(--primary)' : 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: activeTab === 'tracker' ? '600' : '500' }}>
-            <TrendingUp size={18} /> Health Tracker
+            <TrendingUp size={18} /> {t('healthTracker')}
           </button>
           {allReports.length > 1 && (
             <button className={`nav-btn ${activeTab === 'comparison' ? 'active' : ''}`} onClick={() => setActiveTab('comparison')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: 'var(--radius-full)', background: activeTab === 'comparison' ? 'rgba(0, 210, 255, 0.1)' : 'transparent', color: activeTab === 'comparison' ? 'var(--primary)' : 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: activeTab === 'comparison' ? '600' : '500' }}>
-              <FileText size={18} /> Comparison
+              <FileText size={18} /> {t('comparison')}
             </button>
           )}
         </div>
 
         {/* Right Actions */}
         <div className="nav-actions" style={{ flexWrap: 'wrap' }}>
+          <LanguageSelector />
           {reportData && (
             <button className="nav-btn" onClick={openAnalyzePopup} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
-              <UploadCloud size={18} /> Analyze Another Report
+              <UploadCloud size={18} /> {t('analyzeAnotherReport')}
             </button>
           )}
           <button className="nav-btn" onClick={() => navigate('/consultant', { state: { reports: allReports, selectedIndex: selectedReportIndex } })} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
-            <User size={18} /> Specialists
+            <User size={18} /> {t('specialists')}
           </button>
           <div style={{ width: '1px', height: '24px', background: 'var(--surface-border)' }}></div>
           <button onClick={toggleTheme} className="dashboard-theme-button" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
@@ -725,7 +739,7 @@ Always return valid parseable JSON.`;
             </div>
           )}
           <button className="nav-btn" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: 'var(--radius-full)', background: 'rgba(231, 76, 60, 0.1)', color: 'var(--danger)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '600' }}>
-            Logout
+            {t('logout')}
           </button>
         </div>
       </nav>
@@ -735,7 +749,7 @@ Always return valid parseable JSON.`;
         
         {/* Top Header Label */}
         <header style={{ marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '1.75rem', margin: '0 0 0.5rem 0' }}>Patient Portal</h1>
+          <h1 style={{ fontSize: '1.75rem', margin: '0 0 0.5rem 0' }}>{t('patientPortal')}</h1>
           <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.95rem' }}>
             {allReports.length > 1 ? 'Review previous uploads, compare findings, or analyze a new report.' : (reportData ? 'Your AI-generated clinical diagnosis and health metrics.' : 'Get started by completing your medical profile details.')}
           </p>
@@ -1144,10 +1158,11 @@ Always return valid parseable JSON.`;
           <div className="glass-panel chat-panel animate-fade-in" style={{ width: '380px', height: '500px', marginBottom: '1rem', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-depth), 0 0 30px rgba(0, 210, 255, 0.1)' }}>
             <div style={{ background: 'rgba(0, 210, 255, 0.1)', padding: '1.25rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ background: 'var(--primary)', padding: '0.5rem', borderRadius: '50%' }}><Cpu size={20} color="#fff" /></div>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '1rem' }}>MedIntel AI Assistant</h4>
-                <span style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>● Online</span>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: 0, fontSize: '1rem' }}>{tChat('chatAssistant')}</h4>
+                <span style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>● {tChat('online')}</span>
               </div>
+              <LanguageSelector scope="chat" />
             </div>
             
             <div style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
@@ -1178,10 +1193,11 @@ Always return valid parseable JSON.`;
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Ask about your report..." 
+                placeholder={tChat('askAboutReport')}
+                aria-label={tChat('askAboutReport')}
                 style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', borderRadius: 'var(--radius-full)', padding: '0.75rem 1.25rem', outline: 'none', fontSize: '0.9rem' }}
               />
-              <button className="btn-primary" onClick={handleSendMessage} disabled={isChatLoading} style={{ width: '42px', height: '42px', borderRadius: '50%', padding: 0, opacity: isChatLoading ? 0.6 : 1 }}>
+              <button className="btn-primary" onClick={handleSendMessage} disabled={isChatLoading} aria-label={tChat('sendMessage')} title={tChat('sendMessage')} style={{ width: '42px', height: '42px', borderRadius: '50%', padding: 0, opacity: isChatLoading ? 0.6 : 1 }}>
                 <MessageSquare size={18} />
               </button>
             </div>

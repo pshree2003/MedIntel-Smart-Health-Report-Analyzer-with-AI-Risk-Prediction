@@ -3,6 +3,7 @@ import { ArrowLeft, User, MapPin, Star, Calendar, Phone, HeartPulse, Activity as
 import { useNavigate } from 'react-router-dom';
 import html2pdf from 'html2pdf.js';
 import { requestGemini } from '../utils/geminiApi';
+import LanguageSelector from '../components/LanguageSelector';
 
 const BookConsultant = () => {
   const navigate = useNavigate();
@@ -727,6 +728,7 @@ Return ONLY valid JSON (no markdown, no backticks, no extra text) as an array ma
 
         {/* Right Actions */}
           <div className="nav-actions">
+          <LanguageSelector />
           <button className="nav-btn" onClick={() => setHistoryOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-full)', background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500' }}>
             <Calendar size={18} /> My Consult History
             {consultHistory.length > 0 && <span style={{ background: 'var(--primary)', color: '#fff', borderRadius: '9999px', fontSize: '0.72rem', padding: '0.1rem 0.45rem' }}>{consultHistory.length}</span>}
