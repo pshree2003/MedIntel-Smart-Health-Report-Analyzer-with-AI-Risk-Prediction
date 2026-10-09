@@ -11,6 +11,12 @@ export const requestGemini = async (path, payload) => {
 
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok) {
+      if (response.status === 404 && !import.meta.env.DEV && !configuredApiBaseUrl) {
+        throw new Error('The public AI backend URL is not configured. Set VITE_API_BASE_URL and redeploy the frontend.');
+      }
+      if (response.status === 404) {
+        throw new Error('The configured AI backend endpoint was not found. Check VITE_API_BASE_URL.');
+      }
       throw new Error(result.message || 'The AI service is temporarily unavailable.');
     }
 

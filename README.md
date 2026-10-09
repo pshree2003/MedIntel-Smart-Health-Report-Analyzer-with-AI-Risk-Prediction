@@ -139,6 +139,11 @@ A dual-layer routing system matches identified health risks with appropriate med
     npm run dev
     ```
 
+    Or launch both services together:
+    ```bash
+    npm run dev:full
+    ```
+
 The frontend sends chat, report, manual-analysis, and specialist-discovery requests to the AI backend. The backend calls Gemini with `GEMINI_API_KEY`; the key is never sent in a response or included in the Vite bundle. The existing credentials service remains available separately with `npm run credentials-server` on port `3001`.
 
 ### Deployment
@@ -151,7 +156,7 @@ FRONTEND_ORIGIN=https://your-github-pages-site.example
 PORT=3002
 ```
 
-Use `npm install` during the backend build and `npm run ai-server` as the start command. After setting `VITE_API_BASE_URL`, push to `main` so the workflow rebuilds the frontend against that public backend. Do not create a `VITE_GEMINI_API_KEY` secret or variable. On a new browser or phone, users should open the deployed frontend normally; no Gemini key is required.
+Use `npm install` during the backend build and `npm run ai-server` as the start command. After setting `VITE_API_BASE_URL` to the public backend URL, push to `main` so the workflow rebuilds the frontend against that backend. Do not create a `VITE_GEMINI_API_KEY` secret or variable. On a new browser or phone, users should open the deployed frontend normally; no Gemini key is required.
 
 ---
 
