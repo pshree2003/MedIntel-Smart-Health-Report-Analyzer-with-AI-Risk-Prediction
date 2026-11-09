@@ -115,6 +115,11 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && req.url === '/health') {
+    sendJson(res, 200, { ok: true, service: 'medintel-ai-backend' }, requestOrigin);
+    return;
+  }
+
   const config = endpointConfig[req.url];
   if (req.method !== 'POST' || !config) {
     sendJson(res, 404, { ok: false, message: 'Not found.' }, requestOrigin);

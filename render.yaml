@@ -8,6 +8,6 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: FRONTEND_ORIGIN
-        value: https://medintel-ai-shrikantp.surge.sh
+        value: https://medintel-ai-shrikantp.surge.sh,https://pshree2003.github.io
       - key: PORT
         value: 10000
