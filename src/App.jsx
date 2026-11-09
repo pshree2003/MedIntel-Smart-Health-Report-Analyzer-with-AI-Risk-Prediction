@@ -24,6 +24,9 @@ const ProtectedRoute = ({ children }) => {
   if (currentUser.role === 'doctor') {
     return <Navigate to="/doctor-dashboard" replace />;
   }
+  if (currentUser.role !== 'patient') {
+    return <Navigate to="/" replace />;
+  }
   return children;
 };
 

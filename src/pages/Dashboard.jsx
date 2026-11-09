@@ -355,9 +355,9 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
     }
   };
 
-  // Helper to save report in local user context and global users list
-  const saveReport = (report) => {
-    const updatedReports = [...(currentUser.reports || []), report];
+  // Save all completed analyses together so multiple uploads are not overwritten.
+  const saveReports = (reports) => {
+    const updatedReports = [...(currentUser.reports || []), ...reports];
     const updatedUser = { ...currentUser, reports: updatedReports };
     
     // Update local react state & localStorage
@@ -453,11 +453,13 @@ Be conversational, very empathetic, and highly professional. Limit responses to 
         return;
       }
 
-      finalReports.forEach(saveReport);
-      setSuccessMsg('Analysis complete! Dashboard updated.');
+      saveReports(finalReports);
+      setActiveTab('overview');
+      setSuccessMsg('Analysis complete! Your useful health insights are ready below.');
       setTimeout(() => {
         setIsInputModalOpen(false);
         setUploading(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 1200);
 
     } catch (err) {
@@ -559,12 +561,14 @@ Always return valid parseable JSON.`;
       if (startIdx === -1 || endIdx === 0) throw new Error("AI did not return valid JSON structure.");
       const parsedReport = JSON.parse(responseText.substring(startIdx, endIdx));
 
-      saveReport(parsedReport);
-      setSuccessMsg('Analysis complete! Dashboard updated.');
+      saveReports([parsedReport]);
+      setActiveTab('overview');
+      setSuccessMsg('Analysis complete! Your useful health insights are ready below.');
       
       setTimeout(() => {
         setIsInputModalOpen(false);
         setUploading(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         // Reset manual fields
         setManualAge('');
         setManualAddress('');

@@ -121,7 +121,14 @@ const PatientAuth = ({ onSuccess, onShowWelcomeEmail }) => {
     if (users.find(u => u.email.toLowerCase() === regEmail.toLowerCase()))
       return setRegErr('This email is already registered.');
 
-    const newUser = { name: regName.trim(), email: regEmail.toLowerCase(), phone: regPhone, password: regPass, reports: [] };
+    const newUser = {
+      name: regName.trim(),
+      email: regEmail.toLowerCase(),
+      phone: regPhone,
+      password: regPass,
+      role: 'patient',
+      reports: []
+    };
     users.push(newUser);
     localStorage.setItem('medintel_users', JSON.stringify(users));
     localStorage.setItem('medintel_current_user', JSON.stringify(newUser));
