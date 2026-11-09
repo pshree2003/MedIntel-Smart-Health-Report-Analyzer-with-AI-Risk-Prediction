@@ -148,7 +148,7 @@ The frontend sends chat, report, manual-analysis, and specialist-discovery reque
 
 ### Deployment
 
-GitHub Pages and Surge can host the static frontend, but they cannot run the Gemini backend. Deploy `gemini-server.js` to a Node-capable host such as Render, Railway, Fly.io, or a VPS. A Render blueprint is included in `render.yaml`; after creating the service, set its `GEMINI_API_KEY` secret. The frontend defaults to the Render service URL from the blueprint, while `VITE_API_BASE_URL` can override it for another backend:
+GitHub Pages and Surge can host the static frontend, but they cannot run the Gemini backend. Deploy `gemini-server.js` to a Node-capable host such as Render, Railway, Fly.io, or a VPS. A Render blueprint is included in `render.yaml`; after creating the service, set its `GEMINI_API_KEY` secret. The frontend defaults to the Render service URL from the blueprint, while `VITE_API_BASE_URL` can override it for another backend. The deployed Surge frontend is available at `https://medintel-ai-shrikantp.surge.sh/`:
 
 ```env
 GEMINI_API_KEY=your-server-only-gemini-key

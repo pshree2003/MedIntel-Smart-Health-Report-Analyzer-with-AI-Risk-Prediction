@@ -8,6 +8,6 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: FRONTEND_ORIGIN
-        value: https://pshree2003.github.io/MedIntel-Smart-Health-Report-Analyzer-with-AI-Risk-Prediction
+        value: https://medintel-ai-shrikantp.surge.sh
       - key: PORT
         value: 10000
